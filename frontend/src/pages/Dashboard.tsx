@@ -1,0 +1,38 @@
+import React from 'react';
+import '../styles/theme.css';
+import AdminLayout from '../layouts/AdminLayout';
+import DashboardCard from '../components/DashboardCard';
+import StockChart from '../components/StockChart';
+import CurrentStockChart from '../components/CurrentStockChart';
+
+const Dashboard: React.FC = () => {
+  return (
+    <AdminLayout>
+      <h2>Admin Dashboard</h2>
+
+      <div className="card-container">
+        <DashboardCard title="Inventory" icon="/icons/inventory.png" route="/inventory" />
+        <DashboardCard title="Billing" icon="/icons/billing.png" route="/billing" />
+        <DashboardCard title="Reports" icon="/icons/reports.png" route="/reports" />
+      </div>
+
+      {/* Charts Section */}
+      <div style={{ 
+        marginTop: '2rem', 
+        display: 'flex', 
+        gap: '1.5rem', 
+        flexWrap: 'wrap' 
+      }}>
+        <div style={{ flex: 1, minWidth: '400px' }}>
+          <StockChart />
+        </div>
+        <div style={{ flex: 1, minWidth: '400px' }}>
+          <CurrentStockChart />
+        </div>
+      </div>
+
+    </AdminLayout>
+  );
+};
+
+export default Dashboard;
