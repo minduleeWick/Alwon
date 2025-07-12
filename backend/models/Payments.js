@@ -1,0 +1,58 @@
+const mongoose = require('mongoose');
+const paymentSchema = new mongoose.Schema({
+    customerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Customer',
+        required: true
+    },
+
+    customerType: {
+        type: String,
+        enum: ['registered', 'guest'],
+        required: true
+    },
+    guestInfo: {
+        type: {
+            name: { type: String, trim: true },
+            phone: { type: String, match: /^[0-9]{10}$/ } // Assuming phone number is 10 digits long
+        },
+        default: null // Guest info is optional
+    },
+    quantity: {
+        type: Number,
+        required: true,
+        min: 1 // Quantity must be at least 1
+    },
+    itemCode: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Inventory',
+        required: true
+    },
+    itemName: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    amount: {
+        type: Number,
+        required: true,
+        min: 0 // Amount cannot be negative
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['Cash', 'Card', 'Online'],
+        required: true
+    },
+    paymentDate: {
+        type: Date,
+        default: Date.now
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'Completed', 'Failed'],
+        default: 'Pending'
+    }
+});
+
+
+const Payment = mongoose.model('Payment', paymentSchema);
