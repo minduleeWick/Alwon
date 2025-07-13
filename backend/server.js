@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -49,3 +50,4 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port: ${PORT}`);
 });
+

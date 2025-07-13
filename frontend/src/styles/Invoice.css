@@ -1,0 +1,95 @@
+
+.invoice-wrapper {
+  font-family: Arial, sans-serif;
+  padding: 30px;
+  width: 800px;
+  margin: auto;
+  background: white;
+  color: #000;
+}
+
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #007BFF;
+  padding-bottom: 10px;
+}
+.invoice-logo-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.invoice-logo {
+  height: 60px;
+  object-fit: contain;
+}
+.invoice-top {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.invoice-date {
+  margin: 20px 0;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.invoice-table th, .invoice-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.subtotal-line {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.invoice-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+}
+
+.thankyou {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 24px;
+  font-weight: bold;
+}
+.invoice-logo-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.invoice-logo {
+  height: 80px;
+  object-fit: contain;
+}
+/* Print only the invoice */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .invoice-wrapper, .invoice-wrapper * {
+    visibility: visible;
+  }
+
+  .invoice-wrapper {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
