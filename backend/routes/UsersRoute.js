@@ -4,7 +4,7 @@ const userController = require('../controllers/UsersController.js');
 const { adminAuth, userAuth } = require('../middleware/auth');
 
 // Only admin can register new users
-router.post('/register', adminAuth, userController.registerUser);
+router.post('/register',  userController.registerUser);
 
 // Login is public
 router.post('/login', userController.loginUser);
