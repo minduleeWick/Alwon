@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Billing from './pages/Billing';
 import Reports from './pages/Reports';
+import Users from './pages/Users';
+import BillHistory from './pages/BillHistory';
 
 function App() {
   return (
@@ -15,6 +17,9 @@ function App() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/bill-history" element={<BillHistory />} />
+
       </Routes>
     </Router>
   );
