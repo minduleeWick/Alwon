@@ -1,58 +1,57 @@
 const mongoose = require('mongoose');
-
-const inventorySchema = new mongoose.Schema({
-    itemName: {
-        type: String,
-        required: true,
+const paymentSchema = new mongoose.Schema({
+    customerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Customer',
+        required: true
     },
-    itemCode: {
+
+    customerType: {
         type: String,
-        required: true,
-        unique: true,
+        enum: ['registered', 'guest'],
+        required: true
+    },
+    guestInfo: {
+        type: {
+            name: { type: String, trim: true },
+            phone: { type: String, match: /^[0-9]{10}$/ } // Assuming phone number is 10 digits long
+        },
+        default: null // Guest info is optional
     },
     quantity: {
         type: Number,
         required: true,
-        min: 0, // Quantity cannot be negative
+        min: 1 // Quantity must be at least 1
     },
-    pricePerUnit: {
-        type: Number,
-        required: true,
-        min: 0, // Price cannot be negative
+    itemCode: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Inventory',
+        required: true
     },
-    supplierName: {
+    itemName: {
         type: String,
         required: true,
+        trim: true
     },
-    availablequantity: {
+    amount: {
         type: Number,
         required: true,
-        min: 0, // Available quantity cannot be negative
+        min: 0 // Amount cannot be negative
     },
-    sellingprice: {
-        type: Number,
-        required: true,
-        min: 0, // Selling price cannot be negative
+    paymentMethod: {
+        type: String,
+        enum: ['Cash', 'Card', 'Online'],
+        required: true
     },
-    totalreavanue: {
-        type: Number,
-        required: true,
-        min: 0, // Total revenue cannot be negative
-    },
-    soldquantity: {
-        type: Number,
-        required: true, // Sold quantity cannot be negative
-        min: 0,
-    },
-    profitearn: {
-        type: Number,
-        required: true,
-        min: 0, // Profit earned cannot be negative
-    },
-    createdAt: {
+    paymentDate: {
         type: Date,
         default: Date.now
+    },
+    status: {
+        type: String,
+        enum: ['Pending', 'Completed', 'Failed'],
+        default: 'Pending'
     }
-    });
+});
 
-module.exports = mongoose.model('Inventory', inventorySchema);
+module.exports = mongoose.model('Payment', paymentSchema);
