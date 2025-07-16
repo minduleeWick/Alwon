@@ -1,17 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const authRoutes = require('./routes/auth');
-
-
-app.use(cors());
-app.use(express.json());
-
-app.use('/api/auth', authRoutes);
-
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
 const mongoose = require('mongoose');
 require('dotenv').config();
 

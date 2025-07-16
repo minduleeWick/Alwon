@@ -68,9 +68,9 @@ const loginUser = async (req, res) => {
 // Get all users (Admin only)
 const getAllUsers = async (req, res) => {
   try {
-    if (!req.user || req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admins only.' });
-    }
+    // if (!req.user || req.user.role !== 'admin') {
+    //   return res.status(403).json({ error: 'Access denied. Admins only.' });
+    // }
 
     const users = await User.find().select('-password');
     res.json(users);
