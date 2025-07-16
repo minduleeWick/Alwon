@@ -5,10 +5,10 @@ const jwt = require('jsonwebtoken');
 // Register a new user (Admin only)
 const registerUser = async (req, res) => {
   try {
-    // ✅ Check if the request is from an admin
-    if (!req.user || req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Only admins can register users.' });
-    }
+    // // ✅ Check if the request is from an admin
+    // if (!req.user || req.user.role !== 'admin') {
+    //   return res.status(403).json({ error: 'Access denied. Only admins can register users.' });
+    // }
 
     const { username, userid, password, role } = req.body;
 
@@ -41,13 +41,14 @@ const registerUser = async (req, res) => {
 // Login user (Public)
 const loginUser = async (req, res) => {
   try {
-    const { userid, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!userid || !password) {
-      return res.status(400).json({ error: 'User ID and password are required.' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
     }
 
-    const user = await User.findOne({ userid });
+    // Find user by username instead of userid
+    const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     const match = await bcrypt.compare(password, user.password);
