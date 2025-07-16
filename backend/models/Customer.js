@@ -6,16 +6,16 @@ const customerSchema = new mongoose.Schema({
     required: true,
     
   },
-  idnumber: {
-    type: String,
-    required: true,
-    unique: true,
+  // idnumber: {
+  //   type: String,
+  //   required: true,
+  //   unique: true,
    
-  },
-    address: {  
-    type: String,
-    required: true,
-  },
+  // },
+  //   address: {  
+  //   type: String,
+  //   required: true,
+  // },
 
   phone: {
     type: String,
@@ -23,18 +23,18 @@ const customerSchema = new mongoose.Schema({
     match: /^[0-9]{10}$/ // Assuming phone number is 10 digits long
   },
 
-   email: {
-    type: String,
-    required: true,
-    unique: true,
-    match: /.+\@.+\..+/ // Basic email validation
+  //  email: {
+  //   type: String,
+  //   required: true,
+  //   unique: true,
+  //   match: /.+\@.+\..+/ // Basic email validation
 
-  },
-  type: {
-    type: String,
-    enum: ['Individual', 'Business'],
-    required: true
-  },
+  // },
+  // type: {
+  //   type: String,
+  //   enum: ['Individual', 'Business'],
+  //   required: true
+  // },
     createdAt: {
         type: Date,
         default: Date.now
