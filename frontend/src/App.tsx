@@ -7,6 +7,7 @@ import Billing from './pages/Billing';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import BillHistory from './pages/BillHistory';
+import Customers from './pages/Customer';
 
 function App() {
   return (
@@ -19,6 +20,8 @@ function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/users" element={<Users />} />
         <Route path="/bill-history" element={<BillHistory />} />
+        <Route path="/customer" element={<Customers />} />
+
 
       </Routes>
     </Router>
