@@ -10,7 +10,7 @@ router.post('/register',  userController.registerUser);
 router.post('/login', userController.loginUser);
 
 // Get all users (admin only)
-router.get('/', adminAuth, userController.getAllUsers);
+router.get('/', userController.getAllUsers);
 
 // Delete user (admin only)
 router.delete('/:id', adminAuth, userController.deleteUser);
