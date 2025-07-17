@@ -14,6 +14,9 @@ const Dashboard: React.FC = () => {
         <DashboardCard title="Inventory" icon="/icons/inventory.png" route="/inventory" />
         <DashboardCard title="Billing" icon="/icons/billing.png" route="/billing" />
         <DashboardCard title="Reports" icon="/icons/reports.png" route="/reports" />
+        <DashboardCard title="Users" icon="/icons/users.png" route="/users" />
+        <DashboardCard title="Customers" icon="/icons/customers.png" route="/customer" />
+        <DashboardCard title="Billing History" icon="/icons/billHistory.png" route="/bill-history" />
       </div>
 
       {/* Charts Section */}
