@@ -6,6 +6,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PeopleAltIcon from '@mui/icons-material/People';
+import HistoryIcon from '@mui/icons-material/History';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -16,6 +17,7 @@ const Sidebar: React.FC = () => {
       <div className="sidebar-logo">
         <img src="/logo.png" alt="Company Logo" />
       </div>
+      <div className="sidebar-menu-container">
       <ul className="sidebar-menu">
         <li className={location.pathname === '/dashboard' ? 'active' : ''}>
           <Link to="/dashboard">
@@ -51,12 +53,12 @@ const Sidebar: React.FC = () => {
             </li>
           </>
         )} */}
-                    <li className={location.pathname === '/reports' ? 'active' : ''}>
+             {/* <li className={location.pathname === '/reports' ? 'active' : ''}>
               <Link to="/reports">
                 <BarChartIcon className="icon" />
                 <span>Reports</span>
               </Link>
-            </li>
+            </li> */}
             <li className={location.pathname === '/users' ? 'active' : ''}>
               <Link to="/users">
                 <PeopleAltIcon className="icon" />
@@ -69,13 +71,26 @@ const Sidebar: React.FC = () => {
                 <span>Customer</span>
               </Link>
             </li>
-              <li className={location.pathname === '/bill-history' ? 'active' : ''}>
-              <Link to="/bill-history">
-                <ReceiptIcon className="icon" />
-                <span>Bill History</span>
-              </Link>
+            <li className={location.pathname===('/bill-history') ? 'active' : ''}>
+              <div className="sidebar-submenu">
+                <Link to="/bill-history">
+                  <HistoryIcon className="icon" /> Bill History
+                </Link>
+                <ul className="nested-submenu">
+                  <li className={location.pathname === '/bill-history/credit' ? 'active' : ''}>
+                    <Link to="/bill-history/credit">Credit Bills</Link>
+                  </li>
+                </ul>
+                <ul className="nested-submenu">
+                  <li className={location.pathname === '/bill-history/cheques' ? 'active' : ''}>
+                    <Link to="/bill-history/cheques">Cheque Payments</Link>
+                  </li>
+                </ul>
+              </div>
             </li>
+
       </ul>
+      </div>
     </nav>
   );
 };

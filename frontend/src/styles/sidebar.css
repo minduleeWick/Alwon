@@ -1,11 +1,9 @@
-/* ---- frontend/src/styles/sidebar.css ---- */
 .sidebar {
   width: 220px;
   height: 100vh;
   background-color: #002B5B;
   display: flex;
   flex-direction: column;
-  padding-top: 20px;
   color: white;
   position: fixed;
   left: 0;
@@ -14,11 +12,16 @@
   z-index: 10;
 }
 
+/* Logo fixed at the top */
 .sidebar-logo {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 0;
+  padding: 20px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid #004080;
+  background-color: #002B5B;
 }
 
 .sidebar-logo img {
@@ -32,6 +35,22 @@
   margin-top: 10px;
   font-size: 18px;
   font-weight: bold;
+}
+
+/* Scrollable menu container */
+.sidebar-menu-container {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* Optional: style scroll bar */
+.sidebar-menu-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-menu-container::-webkit-scrollbar-thumb {
+  background-color: #004080;
+  border-radius: 3px;
 }
 
 .sidebar ul {
