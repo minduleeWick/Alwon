@@ -8,6 +8,8 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import BillHistory from './pages/BillHistory';
 import Customers from './pages/Customer';
+import CreditBills from './pages/CreditBills';
+import ChequePayments from './pages/ChequePayments';
 
 function App() {
   return (
@@ -21,6 +23,10 @@ function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/bill-history" element={<BillHistory />} />
         <Route path="/customer" element={<Customers />} />
+        <Route path="/bill-history/credit" element={<CreditBills />} />
+        <Route path="/bill-history/cheques" element={<ChequePayments />} />
+
+
 
 
       </Routes>
