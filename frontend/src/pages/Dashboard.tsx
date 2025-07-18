@@ -5,6 +5,7 @@ import DashboardCard from '../components/DashboardCard';
 import StockChart from '../components/StockChart';
 import CurrentStockChart from '../components/CurrentStockChart';
 
+
 const Dashboard: React.FC = () => {
   return (
     <AdminLayout>
