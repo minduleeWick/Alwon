@@ -160,7 +160,7 @@ const searchInventoryItems = async (req, res) => {
 const updateInventoryByItemCode = async (req, res) => {
   const { itemCode } = req.params;
   const {
-    soldquantity,
+    quantity,
     availablequantity,
     totalreavanue,
     profitearn
@@ -174,7 +174,7 @@ const updateInventoryByItemCode = async (req, res) => {
     }
 
     // Update only the provided fields
-    if (soldquantity != null) item.soldquantity = soldquantity;
+    if (quantity != null) item.quantity = quantity;
     if (availablequantity != null) item.availablequantity = availablequantity;
     if (totalreavanue != null) item.totalreavanue = totalreavanue;
     if (profitearn != null) item.profitearn = profitearn;
