@@ -4,51 +4,49 @@ const Inventory = require('../models/Inventory');
 // ✅ Helper: Check if MongoDB ObjectId is valid
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-// ✅ Add a new inventory item
+// ✅ Add single or multiple inventory items
 const addInventoryItem = async (req, res) => {
   try {
-    const {
-      itemName,
-      itemCode,
-      quantity,
-      pricePerUnit,
-      supplierName,
-      availablequantity,
-      sellingprice,
-      totalreavanue,
-      soldquantity,
-      profitearn,
-    } = req.body;
+    let items = req.body;
 
-    // Required field check
-    if (
-      !itemName || !itemCode || quantity == null || pricePerUnit == null ||
-      !supplierName || availablequantity == null || sellingprice == null ||
-      totalreavanue == null || soldquantity == null || profitearn == null
-    ) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    // If it's not an array, convert to array for consistency
+    if (!Array.isArray(items)) {
+      items = [items];
     }
 
-    const item = new Inventory({
-      itemName,
-      itemCode,
-      quantity,
-      pricePerUnit,
-      supplierName,
-      availablequantity,
-      sellingprice,
-      totalreavanue,
-      soldquantity,
-      profitearn,
-    });
+    // Validate each item
+    for (const item of items) {
+      const {
+        itemName,
+        itemCode,
+        quantity,
+        pricePerUnit,
+        supplierName,
+        availablequantity,
+        sellingprice,
+        totalreavanue,
+        soldquantity,
+        profitearn,
+      } = item;
 
-    await item.save();
-    res.status(201).json(item);
+      if (
+        !itemName || !itemCode || quantity == null || pricePerUnit == null ||
+        !supplierName || availablequantity == null || sellingprice == null ||
+        totalreavanue == null || soldquantity == null || profitearn == null
+      ) {
+        return res.status(400).json({ error: 'All fields are required for each item.' });
+      }
+    }
+
+    // Insert all items at once
+    const savedItems = await Inventory.insertMany(items);
+    res.status(201).json({ message: 'Items added successfully', data: savedItems });
+
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ error: 'Item code already exists.' });
+      return res.status(409).json({ error: 'Duplicate itemCode found.' });
     }
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -137,7 +135,7 @@ const editInventoryItem = async (req, res) => {
     if (err.code === 11000) {
       return res.status(409).json({ error: 'Item code already exists.' });
     }
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -158,11 +156,43 @@ const searchInventoryItems = async (req, res) => {
   }
 };
 
+// ✅ Update inventory fields by itemCode
+const updateInventoryByItemCode = async (req, res) => {
+  const { itemCode } = req.params;
+  const {
+    soldquantity,
+    availablequantity,
+    totalreavanue,
+    profitearn
+  } = req.body;
+
+  try {
+    const item = await Inventory.findOne({ itemCode });
+
+    if (!item) {
+      return res.status(404).json({ error: 'Item with given itemCode not found.' });
+    }
+
+    // Update only the provided fields
+    if (soldquantity != null) item.soldquantity = soldquantity;
+    if (availablequantity != null) item.availablequantity = availablequantity;
+    if (totalreavanue != null) item.totalreavanue = totalreavanue;
+    if (profitearn != null) item.profitearn = profitearn;
+
+    await item.save();
+
+    res.status(200).json({ message: 'Inventory updated successfully', data: item });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ✅ Export all functions
 module.exports = {
   addInventoryItem,
   getAllInventoryItems,
   editInventoryItem,
   deleteInventoryItem,
-  searchInventoryItems
+  searchInventoryItems,
+  updateInventoryByItemCode
 };

@@ -38,6 +38,21 @@ const paymentSchema = new mongoose.Schema({
         required: true,
         min: 0 // Amount cannot be negative
     },
+    payment:{
+        type: Number,
+        required: true,
+        min: 0 // Payment cannot be negative
+    },
+    deupayment: {
+        type: Number,
+        required: true,
+        min: 0 // Due payment cannot be negative
+    },
+    creaditlimit: {
+        type: Number,
+        required: true,
+        min: 0 // Credit limit cannot be negative
+    },
     paymentMethod: {
         type: String,
         enum: ['Cash', 'Card', 'Online'],
