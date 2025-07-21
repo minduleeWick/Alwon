@@ -4,12 +4,13 @@
 
 .topbar-icon {
   margin-left: 8px;
-  margin-right: 8px;
+  margin-right: 0;
 }
 
 .topbar-username {
   font-weight: 500;
   color: #333;
+  margin-left: 8px;
 }
 
 /* Responsive adjustments */
@@ -24,7 +25,6 @@
   }
   .topbar-icon {
     margin-left: 4px;
-    margin-right: 4px;
   }
 }
 
