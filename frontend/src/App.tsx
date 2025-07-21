@@ -10,6 +10,7 @@ import BillHistory from './pages/BillHistory';
 import Customers from './pages/Customer';
 import CreditBills from './pages/CreditBills';
 import ChequePayments from './pages/ChequePayments';
+import Pageloader from './pages/Pageloader';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
 
 
 
+        <Route path="/pageloader" element={<Pageloader />} />
 
       </Routes>
     </Router>
