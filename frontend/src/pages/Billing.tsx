@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/theme.css';
 import { Tabs, Tab, Box } from '@mui/material';
@@ -22,8 +22,23 @@ const Billing: React.FC = () => {
   const [bottles, setBottles] = useState([{ type: '', quantity: 1, price: 0 }]);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [remainingAmount, setRemainingAmount] = useState(0);
+  const [chequeNo, setChequeNo] = useState('');
+  const [chequeDate, setChequeDate] = useState('');
+  const [paidAmount, setPaidAmount] = useState(0);
   const [success, setSuccess] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+    const [creditAmount, setCreditAmount] = useState(0); // ← added
+
+  // Recalculate credit amount whenever needed
+  useEffect(() => {
+    if (paymentMethod === 'credit') {
+      const total = calculateTotal();
+      const difference = total - paidAmount;
+      setCreditAmount(difference > 0 ? difference : 0);
+    } else {
+      setCreditAmount(0);
+    }
+  }, [paymentMethod, paidAmount, bottles]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
@@ -75,6 +90,20 @@ const handleAddBottle = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const billData = {
+      customerName,
+      customerPhone,
+      paymentMethod,
+      bottles,
+      amount: calculateTotal(),          // Total amount of the bill
+      paidAmount: paymentMethod === 'credit' ? paidAmount : calculateTotal(),
+      creditAmount: paymentMethod === 'credit' ? creditAmount : 0,
+      remainingAmount: paymentMethod !== 'cash' ? remainingAmount : 0,
+      chequeNo: paymentMethod === 'cheque' ? chequeNo : '',
+      chequeDate: paymentMethod === 'cheque' ? chequeDate : '',
+    };
+
+    console.log('Bill Data to Save:', billData);
     setSuccess(true);
   };
 
@@ -186,7 +215,8 @@ const handleAddBottle = () => {
               </label>
             </div>
 
-            {['cheque', 'credit'].includes(paymentMethod) && (
+            {['cheque'].includes(paymentMethod) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
               <div className="remaining-amount">
                 <label>
                   Remaining Amount:
@@ -198,7 +228,79 @@ const handleAddBottle = () => {
                   />
                 </label>
               </div>
-            )}
+
+              <div className="cheque-no">
+                <label>
+                  Cheque No:
+                  <input
+                    type="text"
+                    value={chequeNo}
+                    onChange={(e) => setChequeNo(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="amount">
+                <label>
+                  Amount:
+                  <input
+                    type="text"
+                    value={calculateTotal().toFixed(2)}
+                    onChange={(e) => setChequeNo(e.target.value)} // ← this line might be a mistake
+                  />
+                </label>
+              </div>
+
+              <div className="date">
+                <label>
+                  Date:
+                  <input
+                    type="text"
+                    value={chequeDate}
+                    onChange={(e) => setChequeDate(e.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        {['credit'].includes(paymentMethod) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div className="remaining-amount">
+                <label>
+                  Remaining Amount:
+                  <input
+                    type="number"
+                    min={0}
+                    value={remainingAmount}
+                    onChange={(e) => setRemainingAmount(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              <div className="amount">
+                <label>
+                  Paid Amount:
+                  <input
+                    type="text"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="amount">
+                <label>
+                  Credit Amount:
+                  <input
+                    type="text"
+                    value={creditAmount}
+                    readOnly
+                  />
+                </label>
+              </div>
+
+
+            </div>
+          )}
           </div>
 
 
