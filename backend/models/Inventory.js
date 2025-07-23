@@ -17,12 +17,12 @@ const inventorySchema = new mongoose.Schema({
     },
     pricePerUnit: {
         type: Number,
-        required: true,
+        required: false,
         min: 0, // Price cannot be negative
     },
     supplierName: {
         type: String,
-        required: true,
+        required: false,
     },
     availablequantity: {
         type: Number,
@@ -31,22 +31,22 @@ const inventorySchema = new mongoose.Schema({
     },
     sellingprice: {
         type: Number,
-        required: true,
+        required: false,
         min: 0, // Selling price cannot be negative
     },
     totalreavanue: {
         type: Number,
-        required: true,
+        required: false,
         min: 0, // Total revenue cannot be negative
     },
     soldquantity: {
         type: Number,
-        required: true, // Sold quantity cannot be negative
+        required: false, // Sold quantity cannot be negative
         min: 0,
     },
     profitearn: {
         type: Number,
-        required: true,
+        required: false,
         min: 0, // Profit earned cannot be negative
     },
     createdAt: {
@@ -55,4 +55,4 @@ const inventorySchema = new mongoose.Schema({
     }
     });
 
-const Inventory = mongoose.model('Inventory', inventorySchema);
+module.exports = mongoose.model('Inventory', inventorySchema);
