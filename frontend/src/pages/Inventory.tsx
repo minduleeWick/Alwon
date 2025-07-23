@@ -149,6 +149,13 @@ const Inventory: React.FC = () => {
                   <TableCell align="center" colSpan={bottleTypes.length}>Bottle Stock Details</TableCell>
                   <TableCell align="center" colSpan={1}>Actions</TableCell>
                 </TableRow>
+            <TableRow>
+              <TableCell />
+              {bottleTypes.map(type => (
+                <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
+              ))}
+              <TableCell />
+            </TableRow>
                 <TableRow>
                   <TableCell>
                     <input

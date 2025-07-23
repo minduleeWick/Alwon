@@ -12,6 +12,7 @@ import CreditBills from './pages/CreditBills';
 import ChequePayments from './pages/ChequePayments';
 import Pageloader from './pages/Pageloader';
 import ProtectedRoute from './components/ProtectedRoute';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
 
         {/* Optional utility route */}
         <Route path="/pageloader" element={<Pageloader />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
   );
