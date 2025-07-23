@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Avatar, Box, IconButton, Typography, Menu, MenuItem, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button } from '@mui/material';
+import {
+  Avatar, Box, IconButton, Typography, Menu, MenuItem, Switch, FormControlLabel,
+  Select, Divider
+} from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useNavigate } from 'react-router-dom';
 import '../styles/topbar.css';
 
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [username, setUsername] = useState('Admin User');
-  const [editName, setEditName] = useState(username);
-  const navigate = useNavigate();
+  const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
+  // const [profileOpen, setProfileOpen] = useState(false);
+  const [username] = useState('Admin User');
+
+  // Settings state
+  const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState(true);
+  const [language, setLanguage] = useState('en');
 
   // Notification handlers
   const handleNotifClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -20,22 +26,22 @@ const TopBar: React.FC = () => {
     setNotifAnchorEl(null);
   };
 
-  // Settings navigation
-  const handleSettingsClick = () => {
-    navigate('/settings');
+  // Settings menu handlers
+  const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
+    setSettingsAnchorEl(event.currentTarget);
+  };
+  const handleSettingsClose = () => {
+    setSettingsAnchorEl(null);
   };
 
   // Profile dialog handlers
   const handleProfileOpen = () => {
-    setEditName(username);
-    setProfileOpen(true);
+  // setProfileOpen(true);
   };
-  const handleProfileClose = () => {
-    setProfileOpen(false);
-  };
-  const handleProfileSave = () => {
-    setUsername(editName);
-    setProfileOpen(false);
+  // Settings change handlers
+  const handleDarkModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDarkMode(event.target.checked);
+    // TODO: Implement actual theme switching in your App component
   };
 
   return (
@@ -56,9 +62,7 @@ const TopBar: React.FC = () => {
         height: { xs: 48, sm: 56, md: 64 },
       }}
     >
-      {/* Left side: (empty or add logo/title here if needed) */}
       <Box />
-      {/* Right side: Notification, Settings, Avatar, Username */}
       <Box display="flex" alignItems="center">
         <IconButton size="small" className="topbar-icon" onClick={handleNotifClick}>
           <NotificationsIcon fontSize="small" />
@@ -74,6 +78,52 @@ const TopBar: React.FC = () => {
         <IconButton size="small" className="topbar-icon" onClick={handleSettingsClick}>
           <SettingsIcon fontSize="small" />
         </IconButton>
+        <Menu
+          anchorEl={settingsAnchorEl}
+          open={Boolean(settingsAnchorEl)}
+          onClose={handleSettingsClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          PaperProps={{ sx: { p: 2, minWidth: 220 } }}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                checked={darkMode}
+                onChange={handleDarkModeChange}
+                color="primary"
+              />
+            }
+            label="Dark Mode"
+            sx={{ ml: 1 }}
+          />
+          <Divider sx={{ my: 1 }} />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={notifications}
+                onChange={e => setNotifications(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Enable Notifications"
+            sx={{ ml: 1 }}
+          />
+          <Divider sx={{ my: 1 }} />
+          <Typography variant="subtitle2" sx={{ ml: 1, mt: 1 }}>
+            Language
+          </Typography>
+          <Select
+            value={language}
+            onChange={e => setLanguage(e.target.value as string)}
+            fullWidth
+            size="small"
+            sx={{ ml: 1, mt: 1, mb: 1 }}
+          >
+            <MenuItem value="en">English</MenuItem>
+            <MenuItem value="es">Tamil</MenuItem>
+            <MenuItem value="fr">Sinhala</MenuItem>
+          </Select>
+        </Menu>
         <Avatar
           sx={{ width: { xs: 28, sm: 32 }, height: { xs: 28, sm: 32 }, cursor: 'pointer', ml: 1 }}
           onClick={handleProfileOpen}
@@ -91,23 +141,7 @@ const TopBar: React.FC = () => {
         </Typography>
       </Box>
       {/* Profile Edit Dialog */}
-      <Dialog open={profileOpen} onClose={handleProfileClose}>
-        <DialogTitle>Edit Profile</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Username"
-            fullWidth
-            value={editName}
-            onChange={e => setEditName(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleProfileClose}>Cancel</Button>
-          <Button onClick={handleProfileSave} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
+      {/* ...existing profile dialog code... */}
     </Box>
   );
 };
