@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   Avatar, Box, IconButton, Typography, Menu, MenuItem, Switch, FormControlLabel,
   Select, Divider
@@ -6,6 +6,7 @@ import {
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import '../styles/topbar.css';
+import { ThemeContext } from '../context/ThemeContext';
 
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
@@ -43,6 +44,9 @@ const TopBar: React.FC = () => {
     setDarkMode(event.target.checked);
     // TODO: Implement actual theme switching in your App component
   };
+ 
+  const { theme, toggleTheme } = useContext(ThemeContext);
+
 
   return (
     <Box
@@ -85,18 +89,19 @@ const TopBar: React.FC = () => {
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           PaperProps={{ sx: { p: 2, minWidth: 220 } }}
         >
-          <FormControlLabel
-            control={
-              <Switch
-                checked={darkMode}
-                onChange={handleDarkModeChange}
-                color="primary"
-              />
-            }
-            label="Dark Mode"
-            sx={{ ml: 1 }}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={theme === 'dark'}
+              onChange={toggleTheme}
+              color="primary"
+            />
+          }
+          label="Dark Mode"
+                      sx={{ ml: 1 }}
           />
           <Divider sx={{ my: 1 }} />
+        
           <FormControlLabel
             control={
               <Switch
