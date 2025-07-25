@@ -303,8 +303,18 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  font-size: x-large;
+  font-weight: bold;
+  color: #0d4483;
+  font-family: 'Times New Roman', Times, serif;
 }
-
+.invoice-header {
+  text-align: center;
+  font-size: x-large;
+  font-weight: bold;
+  color: #0d4483;
+  font-family: 'Times New Roman', Times, serif;
+}
 
 .payment-row {
   display: flex;

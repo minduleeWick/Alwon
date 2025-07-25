@@ -65,13 +65,21 @@ const ChequePayments = () => {
 
   return (
     <AdminLayout>
-    <div style={{ padding: 20 }}>
-      <Typography variant="h5" gutterBottom>
-        <b>Cheque Payment History</b>
-      </Typography>
+      <div className="inventory-page">
+        <div className="inventory-header">
+        <h2>Cheque Payment History</h2>
+      </div>
 
-      <TableContainer component={Paper}>
-        <Table>
+        <Paper sx={{ width: '100%' }}>
+          <TableContainer sx={{ maxHeight: 440 }}>
+            <Table stickyHeader aria-label="inventory table" sx={{
+              '& th, & td': {
+                borderRight: '1px solid #ccc',
+              },
+              '& th:last-child, & td:last-child': {
+                borderRight: 'none',
+              }
+            }}>
           <TableHead>
             <TableRow style={{ backgroundColor: '#f0f0f0' }}>
               <TableCell align="center"><b>Invoice No</b></TableCell>
@@ -108,6 +116,7 @@ const ChequePayments = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      </Paper>
     </div>
     </AdminLayout>
   );
