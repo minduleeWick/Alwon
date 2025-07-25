@@ -1,6 +1,8 @@
 // ---- frontend/src/pages/Inventory.tsx ----
 import React, { useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
+import '../styles/inventory.css';
+
 import {
   Table,
   TableHead,
@@ -149,6 +151,13 @@ const Inventory: React.FC = () => {
                   <TableCell align="center" colSpan={bottleTypes.length}>Bottle Stock Details</TableCell>
                   <TableCell align="center" colSpan={1}>Actions</TableCell>
                 </TableRow>
+            <TableRow>
+              <TableCell />
+              {bottleTypes.map(type => (
+                <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
+              ))}
+              <TableCell />
+            </TableRow>
                 <TableRow>
                   <TableCell>
                     <input
@@ -187,10 +196,10 @@ const Inventory: React.FC = () => {
                           </TableCell>
                         ))}
                         <TableCell align="center">
-                          <IconButton color="primary" onClick={() => handleEdit(index)}>
+                          <IconButton className="edit-btn" onClick={() => handleEdit(index)}>
                             <EditIcon />
                           </IconButton>
-                          <IconButton color="error" onClick={() => handleDeleteConfirm(index)}>
+                          <IconButton className="delete-btn" onClick={() => handleDeleteConfirm(index)}>
                             <DeleteIcon />
                           </IconButton>
                         </TableCell>

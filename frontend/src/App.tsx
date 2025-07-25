@@ -8,21 +8,35 @@ import Reports from './pages/Reports';
 import Users from './pages/Users';
 import BillHistory from './pages/BillHistory';
 import Customers from './pages/Customer';
+import CreditBills from './pages/CreditBills';
+import ChequePayments from './pages/ChequePayments';
+import Pageloader from './pages/Pageloader';
+import Chatbot from './pages/Chatbot';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Public Route */}
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/billing" element={<Billing />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/bill-history" element={<BillHistory />} />
-        <Route path="/customer" element={<Customers />} />
 
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+        <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="/bill-history" element={<ProtectedRoute><BillHistory /></ProtectedRoute>} />
+        <Route path="/customer" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+        <Route path="/bill-history/credit" element={<ProtectedRoute><CreditBills /></ProtectedRoute>} />
+        <Route path="/bill-history/cheques" element={<ProtectedRoute><ChequePayments /></ProtectedRoute>} />
 
+        {/* Optional utility route */}
+        <Route path="/pageloader" element={<Pageloader />} />
+        <Route path="/chatbot" element={<Chatbot />} />
+
+        {/* Add more routes as needed */}
       </Routes>
     </Router>
   );

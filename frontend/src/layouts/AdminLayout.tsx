@@ -11,7 +11,7 @@ const AdminLayout: React.FC<Props> = ({ children }) => {
   return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
-      <div style={{ marginLeft: 230, flex: 1 }}>
+      <div style={{ marginLeft: 220, flex: 1 }}>
         <TopBar />
         <main style={{ padding: '20px' }}>
           {children}
