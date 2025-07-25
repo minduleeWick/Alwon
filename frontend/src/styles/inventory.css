@@ -1,0 +1,79 @@
+/* Smaller table size */
+.MuiTableContainer-root {
+  background: linear-gradient(135deg, #e3eafc 0%, #f7fafd 100%);
+  border-radius: 16px 16px 6px 6px;
+  max-width: 1420px;
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(21,101,192,0.08);
+}
+
+/* Header bar: first, second, third rows with mixed colors */
+.MuiTableHead-root tr:nth-child(1) th {
+  background: linear-gradient(90deg, #1565c0 60%);
+  color: #fff;
+}
+.MuiTableHead-root tr:nth-child(2) th {
+  background: linear-gradient(90deg, #ffffff 60%, #ffffff 100%);
+  color: #000000;
+}
+.MuiTableHead-root tr:nth-child(3) th,
+.MuiTableHead-root tr:nth-child(3) td {
+  background: linear-gradient(90deg, #ffffff 60%, #ffffff 100%);
+  color: #1565c0;
+}
+
+/* Filter row inputs */
+.MuiTableHead-root input[type="date"],
+.MuiTableHead-root input[type="number"] {
+  background: #dbe4e9;
+  border: 1px solid #ffffff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #000000;
+  font-size: 0.95rem;
+}
+
+/* Table body rows */
+.MuiTableBody-root tr {
+  background: #f7fafd;
+  transition: background 0.2s;
+  height: 38px;
+}
+
+.MuiTableBody-root tr:hover {
+  background: #e3eafc;
+}
+
+/* Table cells */
+.MuiTableCell-root {
+  border-right: 1px solid #e0e0e0;
+  color: #030303;
+  font-size: 0.93rem;
+  padding: 6px 8px;
+}
+
+.MuiTableCell-root:last-child {
+  border-right: none;
+}
+
+/* Action icons: Edit black, Delete red */
+.MuiIconButton-root.edit-btn {
+  color: #222;
+  background: transparent;
+}
+.MuiIconButton-root.delete-btn {
+  color: #d32f2f;
+  background: transparent;
+}
+.MuiIconButton-root.edit-btn:hover {
+  background: #e3eafc;
+}
+.MuiIconButton-root.delete-btn:hover {
+  background: #fbe9e7;
+}
+
+/* Pagination */
+.MuiTablePagination-root {
+  background: #f5f7fa;
+  color: #1565c0;
+}

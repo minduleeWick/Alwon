@@ -1,6 +1,8 @@
 // ---- frontend/src/pages/Inventory.tsx ----
 import React, { useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
+import '../styles/inventory.css';
+
 import {
   Table,
   TableHead,
@@ -194,10 +196,10 @@ const Inventory: React.FC = () => {
                           </TableCell>
                         ))}
                         <TableCell align="center">
-                          <IconButton color="primary" onClick={() => handleEdit(index)}>
+                          <IconButton className="edit-btn" onClick={() => handleEdit(index)}>
                             <EditIcon />
                           </IconButton>
-                          <IconButton color="error" onClick={() => handleDeleteConfirm(index)}>
+                          <IconButton className="delete-btn" onClick={() => handleDeleteConfirm(index)}>
                             <DeleteIcon />
                           </IconButton>
                         </TableCell>
