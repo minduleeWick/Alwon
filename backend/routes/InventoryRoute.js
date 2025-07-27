@@ -1,5 +1,5 @@
 const express = require('express');
-const inventoryController = require('../controllers/IntentoryController.js');
+const inventoryController = require('../controllers/InventoryController.js');
 const router = express.Router();
 
 // Routes
