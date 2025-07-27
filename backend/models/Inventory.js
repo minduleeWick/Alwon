@@ -49,6 +49,10 @@ const inventorySchema = new mongoose.Schema({
         required: false,
         min: 0, // Profit earned cannot be negative
     },
+    date: {
+        type: Date,
+        required: true,
+    },
     createdAt: {
         type: Date,
         default: Date.now
