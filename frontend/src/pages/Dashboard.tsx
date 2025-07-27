@@ -19,7 +19,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <AdminLayout>
+      <div className="inventory-header">
       <h2>Admin Dashboard</h2>
+      </div>
       <div className="card-container">
         <DashboardCard title="Inventory" icon="/icons/inventory.png" route="/inventory" />
         <DashboardCard title="Billing" icon="/icons/billing.png" route="/billing" />

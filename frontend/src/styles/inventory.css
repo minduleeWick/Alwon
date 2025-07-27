@@ -2,8 +2,7 @@
 .MuiTableContainer-root {
   background: linear-gradient(135deg, #e3eafc 0%, #f7fafd 100%);
   border-radius: 16px 16px 6px 6px;
-  max-width: 1420px;
-  margin: 0 auto;
+  max-width: 100%;
   box-shadow: 0 2px 12px rgba(21,101,192,0.08);
 }
 

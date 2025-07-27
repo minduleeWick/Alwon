@@ -90,7 +90,7 @@ const Users: React.FC = () => {
         </div>
 
         <Paper sx={{ width: '100%' }}>
-          <TableContainer sx={{ maxHeight: 440 }}>
+          <TableContainer sx={{ maxHeight: 440, width:'120%' }}>
             <Table stickyHeader aria-label="user table" sx={{
               '& th, & td': {
                 borderRight: '1px solid #ccc',

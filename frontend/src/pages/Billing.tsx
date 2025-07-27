@@ -112,7 +112,9 @@ const handleAddBottle = () => {
   return (
     <AdminLayout>
       <div className="card billing-card">
+      <div style={{textAlign: 'center',fontSize: 'x-large',fontWeight: 'bold',color: '#0d4483',fontFamily: "'Times New Roman', Times, serif"}}>
         <h1>Invoice</h1>
+      </div>
 
         <Box sx={{ width: '100%', bgcolor: 'background.paper', mb: 2 }}>
           <Tabs value={tabIndex} onChange={handleTabChange} centered>

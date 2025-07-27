@@ -102,7 +102,7 @@ const Customers: React.FC = () => {
 
   return (
     <AdminLayout>
-      <div className="customers-page">
+      <div className="inventory-page">
         <div className="inventory-header">
           <h2>Customer Management</h2>
           <Button variant="contained" onClick={handleOpen}>

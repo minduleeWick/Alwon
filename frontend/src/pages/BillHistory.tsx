@@ -93,8 +93,10 @@ const BillHistory: React.FC = () => {
 
   return (
     <AdminLayout>
-      <div className="bill-history-page">
+      <div className="inventory-page">
+        <div className="inventory-header">
         <h2>Bill History</h2>
+        </div>
 
         <Paper sx={{ width: '100%' }}>
           <TableContainer sx={{ maxHeight: 440 }}>

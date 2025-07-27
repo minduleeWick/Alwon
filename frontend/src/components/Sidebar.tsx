@@ -133,13 +133,7 @@ const Sidebar: React.FC = () => {
               <span>Users</span>
             </Link>
           </li>
-          <li className={location.pathname === '/bill-history' ? 'active' : ''}>
-            <Link to="/bill-history">
-              <ReceiptIcon className="icon" />
-              <span>Bill History</span>
-            </Link>
-          </li>
-                      <li className={location.pathname === '/customer' ? 'active' : ''}>
+          <li className={location.pathname === '/customer' ? 'active' : ''}>
               <Link to="/customer">
                 <PeopleAltIcon className="icon" />
                 <span>Customer</span>
