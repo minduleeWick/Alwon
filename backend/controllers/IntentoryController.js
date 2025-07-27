@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Inventory = require('../models/Inventory');
 
 // ✅ Helper: Check if MongoDB ObjectId is valid
-const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // ✅ Add single or multiple inventory items
 const addInventoryItem = async (req, res) => {
@@ -65,9 +65,9 @@ const getAllInventoryItems = async (req, res) => {
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-  if (!isValidObjectId(id)) {
-    return res.status(400).json({ error: 'Invalid item ID format.' });
-  }
+   if (!isValidObjectId(id)) {
+     return res.status(400).json({ error: 'Invalid item ID format.' });
+   }
 
   try {
     const item = await Inventory.findByIdAndDelete(id);
@@ -84,9 +84,9 @@ const deleteInventoryItem = async (req, res) => {
 const editInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-  if (!isValidObjectId(id)) {
-    return res.status(400).json({ error: 'Invalid item ID format.' });
-  }
+   if (!isValidObjectId(id)) {
+     return res.status(400).json({ error: 'Invalid item ID format.' });
+   }
 
   const {
     itemName,
