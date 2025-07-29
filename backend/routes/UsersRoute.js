@@ -3,16 +3,23 @@ const router = express.Router();
 const userController = require('../controllers/UsersController.js');
 const { adminAuth, userAuth } = require('../middleware/auth');
 
-// Only admin can register new users
-router.post('/register',  userController.registerUser);
-
-// Login is public
+// ---------- Auth ----------
 router.post('/login', userController.loginUser);
 
-// Get all users (admin only)
-router.get('/', userController.getAllUsers);
+// 🔐 Forgot / Reset password
+router.post('/forgot-password', userController.forgotPassword);
+router.post('/reset-password/:token', userController.resetPassword);
 
-// Delete user (admin only)
+// (Optional) change password while logged in
+// router.post('/change-password', userAuth, userController.changePassword);
+
+// ---------- Users ----------
+/** Admin only */
+router.post('/register', adminAuth, userController.registerUser);
+router.get('/', adminAuth, userController.getAllUsers);
 router.delete('/:id', adminAuth, userController.deleteUser);
+
+// (Optional) get currently logged-in user profile
+// router.get('/me', userAuth, userController.getMe);
 
 module.exports = router;
