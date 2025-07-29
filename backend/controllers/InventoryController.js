@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Inventory = require('../models/Inventory');
 
 // ✅ Helper: Check if MongoDB ObjectId is valid
-const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // ✅ Add single or multiple inventory items
 const addInventoryItem = async (req, res) => {
@@ -27,12 +27,13 @@ const addInventoryItem = async (req, res) => {
         totalreavanue,
         soldquantity,
         profitearn,
+        date,
       } = item;
 
       if (
         !itemName || !itemCode || quantity == null || pricePerUnit == null ||
         !supplierName || availablequantity == null || sellingprice == null ||
-        totalreavanue == null || soldquantity == null || profitearn == null
+        totalreavanue == null || soldquantity == null || profitearn == null || !date
       ) {
         return res.status(400).json({ error: 'All fields are required for each item.' });
       }
@@ -64,9 +65,9 @@ const getAllInventoryItems = async (req, res) => {
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-  if (!isValidObjectId(id)) {
-    return res.status(400).json({ error: 'Invalid item ID format.' });
-  }
+   if (!isValidObjectId(id)) {
+     return res.status(400).json({ error: 'Invalid item ID format.' });
+   }
 
   try {
     const item = await Inventory.findByIdAndDelete(id);
@@ -83,9 +84,9 @@ const deleteInventoryItem = async (req, res) => {
 const editInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-  if (!isValidObjectId(id)) {
-    return res.status(400).json({ error: 'Invalid item ID format.' });
-  }
+   if (!isValidObjectId(id)) {
+     return res.status(400).json({ error: 'Invalid item ID format.' });
+   }
 
   const {
     itemName,
@@ -158,30 +159,49 @@ const searchInventoryItems = async (req, res) => {
 
 // ✅ Update inventory fields by itemCode
 const updateInventoryByItemCode = async (req, res) => {
-  const { itemCode } = req.params;
-  const {
-    quantity,
-    availablequantity,
-    totalreavanue,
-    profitearn
-  } = req.body;
+  const updates = req.body; // Expecting an array of updates
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'Request body must be a non-empty array of updates.' });
+  }
+
+  const results = [];
 
   try {
-    const item = await Inventory.findOne({ itemCode });
+    for (const update of updates) {
+      const {
+        itemCode,
+        quantity,
+        availablequantity,
+        totalreavanue,
+        profitearn,
+        date
+      } = update;
 
-    if (!item) {
-      return res.status(404).json({ error: 'Item with given itemCode not found.' });
+      if (!itemCode) {
+        results.push({ error: 'Missing itemCode in one update object.' });
+        continue;
+      }
+
+      const item = await Inventory.findOne({ itemCode });
+
+      if (!item) {
+        results.push({ itemCode, error: 'Item not found.' });
+        continue;
+      }
+
+      if (quantity != null) item.quantity = quantity;
+      if (availablequantity != null) item.availablequantity = availablequantity;
+      if (totalreavanue != null) item.totalreavanue = totalreavanue;
+      if (profitearn != null) item.profitearn = profitearn;
+      if (date != null) item.date = date;
+
+      await item.save();
+      results.push({ itemCode, message: 'Item updated successfully', updatedItem: item });
     }
 
-    // Update only the provided fields
-    if (quantity != null) item.quantity = quantity;
-    if (availablequantity != null) item.availablequantity = availablequantity;
-    if (totalreavanue != null) item.totalreavanue = totalreavanue;
-    if (profitearn != null) item.profitearn = profitearn;
+    res.status(200).json({ results });
 
-    await item.save();
-
-    res.status(200).json({ message: 'Inventory updated successfully', data: item });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

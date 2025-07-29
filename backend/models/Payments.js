@@ -3,7 +3,7 @@ const paymentSchema = new mongoose.Schema({
     customerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Customer',
-        required: true
+        required: false
     },
 
     customerType: {
@@ -40,17 +40,17 @@ const paymentSchema = new mongoose.Schema({
     },
     payment:{
         type: Number,
-        required: true,
+        required: false,
         min: 0 // Payment cannot be negative
     },
     deupayment: {
         type: Number,
-        required: true,
+        required: false,
         min: 0 // Due payment cannot be negative
     },
     creaditlimit: {
         type: Number,
-        required: true,
+        required: false,
         min: 0 // Credit limit cannot be negative
     },
     paymentMethod: {
