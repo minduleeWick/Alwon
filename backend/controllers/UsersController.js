@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 // Register a new user (Admin only)
 const registerUser = async (req, res) => {
   try {
-    const { username, userid, password, role } = req.body;
+    const { username, password, role } = req.body;
 
     if (!username || !password || !role) {
       return res.status(400).json({ error: 'All fields are required.' });
