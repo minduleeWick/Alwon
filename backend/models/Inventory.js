@@ -1,62 +1,24 @@
 const mongoose = require('mongoose');
 
+const bottleSchema = new mongoose.Schema({
+  itemCode: { type: String, required: true, trim: true },
+  quantity: { type: Number, required: true, min: 0 },
+  itemName: { type: String, default: '' },
+  pricePerUnit: { type: Number, default: 100 },
+  supplierName: { type: String, default: 'Default Supplier' },
+  availablequantity: { type: Number, default: 0 },
+  sellingprice: { type: Number, default: 150 },
+  totalreavanue: { type: Number, default: 0 },
+  soldquantity: { type: Number, default: 0 },
+  profitearn: { type: Number, default: 0 },
+});
+
 const inventorySchema = new mongoose.Schema({
-    itemName: {
-        type: String,
-        required: true,
-    },
-    itemCode: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-    quantity: {
-        type: Number,
-        required: true,
-        min: 0, // Quantity cannot be negative
-    },
-    pricePerUnit: {
-        type: Number,
-        required: false,
-        min: 0, // Price cannot be negative
-    },
-    supplierName: {
-        type: String,
-        required: false,
-    },
-    availablequantity: {
-        type: Number,
-        required: true,
-        min: 0, // Available quantity cannot be negative
-    },
-    sellingprice: {
-        type: Number,
-        required: false,
-        min: 0, // Selling price cannot be negative
-    },
-    totalreavanue: {
-        type: Number,
-        required: false,
-        min: 0, // Total revenue cannot be negative
-    },
-    soldquantity: {
-        type: Number,
-        required: false, // Sold quantity cannot be negative
-        min: 0,
-    },
-    profitearn: {
-        type: Number,
-        required: false,
-        min: 0, // Profit earned cannot be negative
-    },
-    date: {
-        type: Date,
-        required: true,
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-    });
+  date: { type: String, required: true },
+  bottles: [bottleSchema],
+});
+
+// Ensure unique index on itemCode within bottles array
+inventorySchema.index({ 'bottles.itemCode': 1 }, { unique: true });
 
 module.exports = mongoose.model('Inventory', inventorySchema);
