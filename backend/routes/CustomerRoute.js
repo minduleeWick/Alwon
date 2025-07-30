@@ -3,7 +3,7 @@ const customerController = require('../controllers/CustomerController');
 const router = express.Router();
 
 // Add a new customer
-router.post('/', customerController.addCustomer);
+router.post('/add', customerController.addCustomer);
 
 // Get all customers
 router.get('/', customerController.getAllCustomers);

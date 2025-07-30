@@ -51,8 +51,6 @@ interface InventoryItem {
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
-
-
 const Inventory: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -93,11 +91,11 @@ const Inventory: React.FC = () => {
     setOpen(true);
   };
 
-const handleEdit = (item: InventoryItem) => {
-  console.log('Editing item:', item); // Debug log
-  setCurrentItem(item);
-  setEditOpen(true);
-};
+  const handleEdit = (item: InventoryItem) => {
+    console.log('Editing item:', item); // Debug log
+    setCurrentItem(item);
+    setEditOpen(true);
+  };
 
   const handleDeleteConfirm = (item: InventoryItem) => {
     setCurrentItem(item);
@@ -118,51 +116,52 @@ const handleEdit = (item: InventoryItem) => {
     }
   };
 
-const normalizeBottles = (bottles: BottleEntry[]): BottleEntry[] =>
-  bottles.map((bottle, index) => ({
-    ...bottle,
-    itemName: bottle.itemName || `${bottle.itemCode || 'bottle-' + index} Water Bottle`,
-    itemCode: bottle.itemCode || `bottle-${Date.now()}-${index}`, // Fallback itemCode
-    availablequantity: bottle.availablequantity ?? bottle.quantity,
-    pricePerUnit: bottle.pricePerUnit ?? 100,
-    supplierName: bottle.supplierName ?? 'Default Supplier',
-    sellingprice: bottle.sellingprice ?? 150,
-    totalreavanue: bottle.totalreavanue ?? 0,
-    soldquantity: bottle.soldquantity ?? 0,
-    profitearn: bottle.profitearn ?? 0,
-  }));
+  const normalizeBottles = (bottles: BottleEntry[]): BottleEntry[] =>
+    bottles.map((bottle, index) => ({
+      ...bottle,
+      itemName: bottle.itemName || `${bottle.itemCode || 'bottle-' + index} Water Bottle`,
+      itemCode: bottle.itemCode || `bottle-${Date.now()}-${index}`, // Fallback itemCode
+      availablequantity: bottle.availablequantity ?? bottle.quantity,
+      pricePerUnit: bottle.pricePerUnit ?? 100,
+      supplierName: bottle.supplierName ?? 'Default Supplier',
+      sellingprice: bottle.sellingprice ?? 150,
+      totalreavanue: bottle.totalreavanue ?? 0,
+      soldquantity: bottle.soldquantity ?? 0,
+      profitearn: bottle.profitearn ?? 0,
+    }));
 
-const handleSubmit = async (items: InventoryItem[]) => {
-  try {
-    const { _id, date, bottles } = items[0];
-    
-    // Log for debugging
-    console.log('Submitting inventory:', { _id, date, bottles });
+  const handleSubmit = async (items: InventoryItem[]) => {
+    try {
+      const { _id, date, bottles } = items[0];
+      
+      // Log for debugging
+      console.log('Submitting inventory:', { _id, date, bottles });
 
-    const payload = { date, bottles: normalizeBottles(bottles) };
+      const payload = { date, bottles: normalizeBottles(bottles) };
 
-    if (_id && _id !== '') {
-      // Edit mode: Call PUT endpoint
-      await axios.put(`http://localhost:5000/api/inventory/${_id}`, payload);
-      setSnackbar({ open: true, message: 'Inventory updated!', severity: 'success' });
-      setEditOpen(false);
-    } else {
-      // Add mode: Call POST endpoint
-      await axios.post('http://localhost:5000/api/inventory/add', payload);
-      setSnackbar({ open: true, message: 'Inventory added!', severity: 'success' });
-      setOpen(false);
+      if (_id && _id !== '') {
+        // Edit mode: Call PUT endpoint
+        await axios.put(`http://localhost:5000/api/inventory/${_id}`, payload);
+        setSnackbar({ open: true, message: 'Inventory updated!', severity: 'success' });
+        setEditOpen(false);
+      } else {
+        // Add mode: Call POST endpoint
+        await axios.post('http://localhost:5000/api/inventory/add', payload);
+        setSnackbar({ open: true, message: 'Inventory added!', severity: 'success' });
+        setOpen(false);
+      }
+
+      await fetchInventory();
+    } catch (err: any) {
+      console.error('Submission error:', err);
+      setSnackbar({ open: true, message: err.message || 'Operation failed', severity: 'error' });
     }
-
-    await fetchInventory();
-  } catch (err: any) {
-    console.error('Submission error:', err);
-    setSnackbar({ open: true, message: err.message || 'Operation failed', severity: 'error' });
-  }
-};
+  };
 
   const filteredInventory = inventory.filter((item) => {
     const matchesDate = filters.date === '' || item.date.includes(filters.date);
-    const bottleMap = Object.fromEntries(item.bottles.map((b) => [b.itemCode, b.quantity.toString()]));
+    // Fix here: ensure bottles is defined before mapping
+    const bottleMap = Object.fromEntries((item.bottles ?? []).map((b) => [b.itemCode, b.quantity.toString()]));
 
     const matchesQuantities = bottleTypes.every(type => {
       const filterVal = filters[type];
@@ -218,7 +217,8 @@ const handleSubmit = async (items: InventoryItem[]) => {
                 {filteredInventory
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((item) => {
-                    const bottleMap = Object.fromEntries(item.bottles.map(b => [b.itemCode, b.quantity]));
+                    // Fix here: ensure bottles is defined before mapping
+                    const bottleMap = Object.fromEntries((item.bottles ?? []).map(b => [b.itemCode, b.quantity]));
                     return (
                       <TableRow key={item._id}>
                         <TableCell>{item.date}</TableCell>
@@ -274,7 +274,6 @@ const handleSubmit = async (items: InventoryItem[]) => {
         </DialogContent>
       </Dialog>
 
-
         {/* Delete Confirmation */}
         <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
           <DialogTitle>Confirm Delete</DialogTitle>
@@ -304,4 +303,3 @@ const handleSubmit = async (items: InventoryItem[]) => {
 };
 
 export default Inventory;
-
