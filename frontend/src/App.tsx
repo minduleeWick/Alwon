@@ -12,7 +12,6 @@ import CreditBills from './pages/CreditBills';
 import ChequePayments from './pages/ChequePayments';
 import Pageloader from './pages/Pageloader';
 import Chatbot from './pages/Chatbot';
-import Forgetpw from './pages/Forgetpw';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -32,7 +31,6 @@ function App() {
         <Route path="/customer" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
         <Route path="/bill-history/credit" element={<ProtectedRoute><CreditBills /></ProtectedRoute>} />
         <Route path="/bill-history/cheques" element={<ProtectedRoute><ChequePayments /></ProtectedRoute>} />
-        <Route path="/forget-password" element={<ProtectedRoute><Forgetpw /></ProtectedRoute>} />
 
         {/* Optional utility routes */}
 
