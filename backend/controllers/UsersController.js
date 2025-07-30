@@ -9,7 +9,7 @@ const registerUser = async (req, res) => {
   try {
     const { username, userid, password, role } = req.body;
 
-    if (!username || !userid || !password || !role) {
+    if (!username || !password || !role) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -22,7 +22,6 @@ const registerUser = async (req, res) => {
 
     const user = new User({
       username,
-      userid,
       password: hashedPassword,
       role,
     });
