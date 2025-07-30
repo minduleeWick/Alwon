@@ -15,12 +15,10 @@ router.post('/reset-password/:token', userController.resetPassword);
 
 // ---------- Users ----------
 /** Admin only */
-router.post('/register',  userController.registerUser);
+router.post('/register', userController.registerUser);
 router.get('/', adminAuth, userController.getAllUsers);
 router.delete('/:id', adminAuth, userController.deleteUser);
-
-
-
+router.put('/:id', adminAuth, userController.editUser); // ✅ Edit user added
 
 // (Optional) get currently logged-in user profile
 // router.get('/me', userAuth, userController.getMe);

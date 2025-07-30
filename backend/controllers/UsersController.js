@@ -87,6 +87,34 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// ✅ Edit user by ID (admin only)
+const editUser = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Admins only.' });
+    }
+
+    const { id } = req.params;
+    const { username, password, role } = req.body;
+
+    const updateData = { username, role };
+
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    res.json({ message: 'User updated successfully.', user: updatedUser });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ✅ Forgot Password
 const forgotPassword = async (req, res) => {
   const { username } = req.body;
@@ -152,6 +180,7 @@ module.exports = {
   loginUser,
   getAllUsers,
   deleteUser,
+  editUser,
   forgotPassword,
   resetPassword
 };
