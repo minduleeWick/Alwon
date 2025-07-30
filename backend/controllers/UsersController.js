@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// Register a new user (Admin only)
+// ✅ Register a new user (Admin only)
 const registerUser = async (req, res) => {
   try {
     const { username, password, role } = req.body;
@@ -13,9 +13,9 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
-    const existingUser = await User.findOne({ userid });
+    const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(409).json({ error: 'User ID already exists.' });
+      return res.status(409).json({ error: 'Username already exists.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -23,7 +23,7 @@ const registerUser = async (req, res) => {
     const user = new User({
       username,
       password: hashedPassword,
-      role,
+      role
     });
 
     await user.save();
@@ -33,7 +33,7 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Login user
+// ✅ Login user
 const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -49,7 +49,7 @@ const loginUser = async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Invalid credentials.' });
 
     const token = jwt.sign(
-      { userid: user.userid, role: user.role },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -60,7 +60,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Get all users
+// ✅ Get all users
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select('-password');
@@ -70,7 +70,7 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// Delete a user by ID
+// ✅ Delete a user by ObjectId
 const deleteUser = async (req, res) => {
   try {
     if (!req.user || req.user.role !== 'admin') {
@@ -102,21 +102,19 @@ const forgotPassword = async (req, res) => {
 
     const resetUrl = `http://localhost:3000/reset-password/${token}`;
 
-    // Setup nodemailer (Gmail example)
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
       auth: {
-        user: process.env.EMAIL_USER, // your-email@gmail.com
-        pass: process.env.EMAIL_PASS  // app password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       }
     });
 
     await transporter.sendMail({
-   to: 'it21272868@my.sliit.lk', // 🔐 Static email address
-   subject: 'Password Reset',
-    html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
+      to: 'it21272868@my.sliit.lk',
+      subject: 'Password Reset',
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
     });
-
 
     res.json({ message: 'Password reset email sent.' });
   } catch (err) {
