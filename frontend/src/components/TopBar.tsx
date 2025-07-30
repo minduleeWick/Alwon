@@ -11,11 +11,9 @@ import { ThemeContext } from '../context/ThemeContext';
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  // const [profileOpen, setProfileOpen] = useState(false);
   const [username] = useState('Admin User');
 
   // Settings state
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [language, setLanguage] = useState('en');
 
@@ -37,22 +35,17 @@ const TopBar: React.FC = () => {
 
   // Profile dialog handlers
   const handleProfileOpen = () => {
-  // setProfileOpen(true);
+    // setProfileOpen(true);
   };
-  // Settings change handlers
-  const handleDarkModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDarkMode(event.target.checked);
-    // TODO: Implement actual theme switching in your App component
-  };
- 
-  const { theme, toggleTheme } = useContext(ThemeContext);
 
+  // Settings change handlers
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
     <Box
       className="topbar"
       sx={{
-        width: '81.1%',
+        width: { xs: '100%', sm: '100%', md: 'calc(92% - 270px)' },
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
         display: 'flex',
@@ -64,6 +57,8 @@ const TopBar: React.FC = () => {
         top: 0,
         zIndex: 1000,
         height: { xs: 48, sm: 56, md: 64 },
+        left: { xs: 0, md: 220 },
+        transition: 'width 0.3s, left 0.3s',
       }}
     >
       <Box />
@@ -89,19 +84,18 @@ const TopBar: React.FC = () => {
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           PaperProps={{ sx: { p: 2, minWidth: 220 } }}
         >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={theme === 'dark'}
-              onChange={toggleTheme}
-              color="primary"
-            />
-          }
-          label="Dark Mode"
-                      sx={{ ml: 1 }}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={theme === 'dark'}
+                onChange={toggleTheme}
+                color="primary"
+              />
+            }
+            label="Dark Mode"
+            sx={{ ml: 1 }}
           />
           <Divider sx={{ my: 1 }} />
-        
           <FormControlLabel
             control={
               <Switch
@@ -130,7 +124,12 @@ const TopBar: React.FC = () => {
           </Select>
         </Menu>
         <Avatar
-          sx={{ width: { xs: 28, sm: 32 }, height: { xs: 28, sm: 32 }, cursor: 'pointer', ml: 1 }}
+          sx={{
+            width: { xs: 28, sm: 32 },
+            height: { xs: 28, sm: 32 },
+            cursor: 'pointer',
+            ml: 1
+          }}
           onClick={handleProfileOpen}
         >
           {username[0]}
@@ -139,7 +138,11 @@ const TopBar: React.FC = () => {
           variant="body1"
           ml={1}
           className="topbar-username"
-          sx={{ display: { xs: 'none', sm: 'block' }, cursor: 'pointer' }}
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            cursor: 'pointer',
+            fontSize: { xs: '0.95rem', sm: '1rem' }
+          }}
           onClick={handleProfileOpen}
         >
           {username}
