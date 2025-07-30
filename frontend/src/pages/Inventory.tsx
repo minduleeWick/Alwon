@@ -1,7 +1,8 @@
 // ---- frontend/src/pages/Inventory.tsx ----
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/inventory.css';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
   Table,
@@ -18,48 +19,46 @@ import {
   Paper,
   TablePagination,
   IconButton,
-  DialogContentText
+  DialogContentText,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InventoryForm from '../components/InventoryForm';
 import EditInventoryForm from '../components/EditInventoryForm';
+import axios from 'axios';
+
+interface BottleEntry {
+        itemName: string,
+        itemCode: string,
+        quantity: number,
+        pricePerUnit: number,
+        supplierName: string,
+        availablequantity: number,
+        sellingprice: number,
+        totalreavanue: number,
+        soldquantity: number,
+        profitearn: number,
+}
 
 interface InventoryItem {
+  _id: string;
   date: string;
-  bottles: {
-    type: string;
-    quantity: number;
-  }[];
+  bottles: BottleEntry[];
 }
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
-const sampleInventory: InventoryItem[] = [
-  {
-    date: '2025-07-01',
-    bottles: [
-      { type: '500ml', quantity: 120 },
-      { type: '1L', quantity: 80 },
-    ],
-  },
-  {
-    date: '2025-07-03',
-    bottles: [
-      { type: '1.5L', quantity: 60 },
-      { type: '5L', quantity: 30 },
-      { type: '19L', quantity: 10 },
-    ],
-  },
-];
+
 
 const Inventory: React.FC = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>(sampleInventory);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [currentEditIndex, setCurrentEditIndex] = useState<number | null>(null);
+  const [currentItem, setCurrentItem] = useState<InventoryItem | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
@@ -68,53 +67,102 @@ const Inventory: React.FC = () => {
     ...Object.fromEntries(bottleTypes.map(type => [type, ''])),
   });
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-  const handleEditClose = () => setEditOpen(false);
-  const handleDeleteClose = () => setDeleteOpen(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error',
+  });
 
-  const handleAddInventory = (newItem: InventoryItem) => {
-    setInventory([...inventory, newItem]);
-    handleClose();
+  const handleSnackbarClose = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
-  const handleEdit = (index: number) => {
-    setCurrentEditIndex(index);
-    setEditOpen(true);
-  };
-
-  const handleUpdateInventory = (updatedItem: InventoryItem) => {
-    if (currentEditIndex !== null) {
-      const updated = [...inventory];
-      updated[currentEditIndex] = updatedItem;
-      setInventory(updated);
-      setCurrentEditIndex(null);
+  const fetchInventory = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/inventory');
+      setInventory(response.data);
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to fetch inventory', severity: 'error' });
     }
-    handleEditClose();
   };
 
-  const handleDelete = () => {
-    if (currentEditIndex !== null) {
-      const updated = [...inventory];
-      updated.splice(currentEditIndex, 1);
-      setInventory(updated);
-      setCurrentEditIndex(null);
-    }
-    handleDeleteClose();
+  useEffect(() => { fetchInventory(); }, []);
+
+  const handleAdd = () => {
+    setCurrentItem(null);
+    setOpen(true);
   };
 
-  const handleDeleteConfirm = (index: number) => {
-    setCurrentEditIndex(index);
+const handleEdit = (item: InventoryItem) => {
+  console.log('Editing item:', item); // Debug log
+  setCurrentItem(item);
+  setEditOpen(true);
+};
+
+  const handleDeleteConfirm = (item: InventoryItem) => {
+    setCurrentItem(item);
     setDeleteOpen(true);
   };
 
-  const handleFilterChange = (columnId: string, value: string) => {
-    setFilters({ ...filters, [columnId]: value });
+  const handleDelete = async () => {
+    try {
+      if (!currentItem?._id) throw new Error("Missing inventory ID");
+      await axios.delete(`http://localhost:5000/api/inventory/${currentItem._id}`);
+      await fetchInventory();
+      setSnackbar({ open: true, message: 'Deleted successfully', severity: 'success' });
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message || 'Delete failed', severity: 'error' });
+    } finally {
+      setDeleteOpen(false);
+      setCurrentItem(null);
+    }
   };
+
+const normalizeBottles = (bottles: BottleEntry[]): BottleEntry[] =>
+  bottles.map((bottle, index) => ({
+    ...bottle,
+    itemName: bottle.itemName || `${bottle.itemCode || 'bottle-' + index} Water Bottle`,
+    itemCode: bottle.itemCode || `bottle-${Date.now()}-${index}`, // Fallback itemCode
+    availablequantity: bottle.availablequantity ?? bottle.quantity,
+    pricePerUnit: bottle.pricePerUnit ?? 100,
+    supplierName: bottle.supplierName ?? 'Default Supplier',
+    sellingprice: bottle.sellingprice ?? 150,
+    totalreavanue: bottle.totalreavanue ?? 0,
+    soldquantity: bottle.soldquantity ?? 0,
+    profitearn: bottle.profitearn ?? 0,
+  }));
+
+const handleSubmit = async (items: InventoryItem[]) => {
+  try {
+    const { _id, date, bottles } = items[0];
+    
+    // Log for debugging
+    console.log('Submitting inventory:', { _id, date, bottles });
+
+    const payload = { date, bottles: normalizeBottles(bottles) };
+
+    if (_id && _id !== '') {
+      // Edit mode: Call PUT endpoint
+      await axios.put(`http://localhost:5000/api/inventory/${_id}`, payload);
+      setSnackbar({ open: true, message: 'Inventory updated!', severity: 'success' });
+      setEditOpen(false);
+    } else {
+      // Add mode: Call POST endpoint
+      await axios.post('http://localhost:5000/api/inventory/add', payload);
+      setSnackbar({ open: true, message: 'Inventory added!', severity: 'success' });
+      setOpen(false);
+    }
+
+    await fetchInventory();
+  } catch (err: any) {
+    console.error('Submission error:', err);
+    setSnackbar({ open: true, message: err.message || 'Operation failed', severity: 'error' });
+  }
+};
 
   const filteredInventory = inventory.filter((item) => {
     const matchesDate = filters.date === '' || item.date.includes(filters.date);
-    const bottleMap = Object.fromEntries(item.bottles.map(b => [b.type, b.quantity.toString()]));
+    const bottleMap = Object.fromEntries(item.bottles.map((b) => [b.itemCode, b.quantity.toString()]));
 
     const matchesQuantities = bottleTypes.every(type => {
       const filterVal = filters[type];
@@ -130,51 +178,35 @@ const Inventory: React.FC = () => {
       <div className="inventory-page">
         <div className="inventory-header">
           <h2>Inventory</h2>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpen}>
-            Add New
-          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>Add New</Button>
         </div>
 
-        <Paper sx={{ width: '100%' }}>
-          <TableContainer sx={{ maxHeight: 440 }}>
-            <Table stickyHeader aria-label="inventory table" sx={{
-              '& th, & td': {
-                borderRight: '1px solid #ccc',
-              },
-              '& th:last-child, & td:last-child': {
-                borderRight: 'none',
-              }
-            }}>
+        <Paper>
+          <TableContainer>
+            <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell align="center" colSpan={1}>Date</TableCell>
-                  <TableCell align="center" colSpan={bottleTypes.length}>Bottle Stock Details</TableCell>
-                  <TableCell align="center" colSpan={1}>Actions</TableCell>
+                  <TableCell>Date</TableCell>
+                  {bottleTypes.map((type) => (
+                    <TableCell key={type} align="center">{type}</TableCell>
+                  ))}
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
-            <TableRow>
-              <TableCell />
-              {bottleTypes.map(type => (
-                <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
-              ))}
-              <TableCell />
-            </TableRow>
                 <TableRow>
                   <TableCell>
                     <input
                       type="date"
                       value={filters.date}
-                      onChange={(e) => handleFilterChange('date', e.target.value)}
-                      style={{ width: '100%' }}
+                      onChange={(e) => setFilters({ ...filters, date: e.target.value })}
                     />
                   </TableCell>
                   {bottleTypes.map((type) => (
                     <TableCell key={type}>
                       <input
                         type="number"
-                        value={filters[type]}
-                        onChange={(e) => handleFilterChange(type, e.target.value)}
-                        style={{ width: '100%' }}
                         placeholder="Qty"
+                        value={filters[type]}
+                        onChange={(e) => setFilters({ ...filters, [type]: e.target.value })}
                       />
                     </TableCell>
                   ))}
@@ -185,23 +217,17 @@ const Inventory: React.FC = () => {
               <TableBody>
                 {filteredInventory
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((item, index) => {
-                    const bottleMap = Object.fromEntries(item.bottles.map(b => [b.type, b.quantity]));
+                  .map((item) => {
+                    const bottleMap = Object.fromEntries(item.bottles.map(b => [b.itemCode, b.quantity]));
                     return (
-                      <TableRow hover role="checkbox" tabIndex={-1} key={index}>
+                      <TableRow key={item._id}>
                         <TableCell>{item.date}</TableCell>
-                        {bottleTypes.map((type) => (
-                          <TableCell key={type} align="center">
-                            {bottleMap[type] || 0}
-                          </TableCell>
+                        {bottleTypes.map(type => (
+                          <TableCell key={type} align="center">{bottleMap[type] || 0}</TableCell>
                         ))}
                         <TableCell align="center">
-                          <IconButton className="edit-btn" onClick={() => handleEdit(index)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton className="delete-btn" onClick={() => handleDeleteConfirm(index)}>
-                            <DeleteIcon />
-                          </IconButton>
+                          <IconButton onClick={() => handleEdit(item)}><EditIcon /></IconButton>
+                          <IconButton onClick={() => handleDeleteConfirm(item)} color="error"><DeleteIcon /></IconButton>
                         </TableCell>
                       </TableRow>
                     );
@@ -210,56 +236,72 @@ const Inventory: React.FC = () => {
             </Table>
           </TableContainer>
 
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={filteredInventory.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(+e.target.value);
-              setPage(0);
-            }}
-          />
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          count={filteredInventory.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(+e.target.value);
+            setPage(0);
+          }}
+          component="div"
+          sx={{ display: 'flex', justifyContent: 'flex-end' }}
+        />
         </Paper>
 
-        {/* Add New Dialog */}
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        {/* Add Dialog */}
+        <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Add New Stock</DialogTitle>
           <DialogContent>
-            <InventoryForm onSubmit={handleAddInventory} onCancel={handleClose} />
+            <InventoryForm onSubmit={handleSubmit} onCancel={() => setOpen(false)} />
           </DialogContent>
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={editOpen} onClose={handleEditClose} maxWidth="sm" fullWidth>
-          <DialogTitle>Edit Stock</DialogTitle>
-          <DialogContent>
-            {currentEditIndex !== null && (
-              <EditInventoryForm
-                initialData={inventory[currentEditIndex]}
-                onSubmit={handleUpdateInventory}
-                onCancel={handleEditClose}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Stock</DialogTitle>
+        <DialogContent>
+          {currentItem && (
+            <InventoryForm
+              onSubmit={handleSubmit}
+              onCancel={() => setEditOpen(false)}
+              initialData={currentItem}
+              isEditMode
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteOpen} onClose={handleDeleteClose}>
+
+        {/* Delete Confirmation */}
+        <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogContent>
             <DialogContentText>Are you sure you want to delete this record?</DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleDeleteClose} color="primary">Cancel</Button>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button onClick={handleDelete} color="error">Delete</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Snackbar */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert severity={snackbar.severity} onClose={handleSnackbarClose}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </div>
     </AdminLayout>
   );
 };
 
 export default Inventory;
+
