@@ -17,4 +17,6 @@ router.put('/:id', customerController.editCustomer);
 // Search customers by name or email
 router.get('/search', customerController.searchCustomers);
 
+router.get('/credit-summary', customerController.getAllCustomerCreditSummaries);
+
 module.exports = router;

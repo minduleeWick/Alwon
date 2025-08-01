@@ -14,6 +14,9 @@ const issueBill = async (req, res) => {
       itemCode,
       itemName,
       amount,
+      payment,
+      deupayment,
+      creaditlimit,
       paymentMethod,
       status
     } = req.body;
@@ -53,7 +56,7 @@ const issueBill = async (req, res) => {
     }
 
     // Create payment
-    const payment = new Payment({
+    const paymentDoc = new Payment({
       customerId: customerId || undefined,
       customerType,
       guestInfo: customerType === 'guest' ? guestInfo : undefined,
@@ -61,13 +64,16 @@ const issueBill = async (req, res) => {
       itemCode,
       itemName,
       amount,
+      payment,
+      deupayment,
+      creaditlimit,
       paymentMethod,
       status: status || 'Pending',
       paymentDate: new Date()
     });
 
-    await payment.save();
-    res.status(201).json({ message: 'Payment recorded successfully.', payment });
+    await paymentDoc.save();
+    res.status(201).json({ message: 'Payment recorded successfully.', payment: paymentDoc });
 
   } catch (err) {
     console.error(err);
