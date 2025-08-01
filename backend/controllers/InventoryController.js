@@ -55,6 +55,7 @@ const getAllInventoryItems = async (req, res) => {
   }
 };
 
+
 // ✅ Delete an inventory item by ID
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
@@ -202,7 +203,104 @@ const updateInventoryByItemCode = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Get total available stock for each itemCode across all inventory records
+const getCurrentStock = async (session) => {
+  try {
+    const stock = await Inventory.aggregate([
+      { $unwind: '$bottles' },
+      {
+        $group: {
+          _id: '$bottles.itemCode',
+          itemName: { $first: '$bottles.itemName' },
+          availablequantity: { $sum: '$bottles.availablequantity' },
+          sellingprice: { $first: '$bottles.sellingprice' },
+          pricePerUnit: { $first: '$bottles.pricePerUnit' },
+        },
+      },
+      {
+        $project: {
+          itemCode: '$_id',
+          itemName: 1,
+          availablequantity: 1,
+          sellingprice: 1,
+          pricePerUnit: 1,
+          _id: 0,
+        },
+      },
+    ]).session(session);
+    return stock;
+  } catch (err) {
+    throw new Error(`Failed to get current stock: ${err.message}`);
+  }
+};
 
+// Check and update inventory availability
+const checkInventoryAvailability = async (bottles, session) => {
+  try {
+    // Get total stock
+    const currentStock = await getCurrentStock(session);
+
+    // Validate availability for each bottle
+    const updatedBottles = [];
+    for (const bottle of bottles) {
+      const { type, quantity } = bottle;
+      if (!type || quantity < 1) {
+        throw new Error(`Invalid bottle data: type=${type}, quantity=${quantity}`);
+      }
+
+      // Find stock for itemName (type maps to itemName)
+      const stockItem = currentStock.find((s) => s.itemCode === type);
+      if (!stockItem) {
+        throw new Error(`Item '${type}' not found in inventory.`);
+      }
+      if (stockItem.availablequantity < quantity) {
+        throw new Error(`Insufficient quantity for '${type}'. Available: ${stockItem.availablequantity}, Requested: ${quantity}`);
+      }
+
+      // Store itemCode for Payment
+      updatedBottles.push({ ...bottle, itemCode: stockItem.itemCode });
+    }
+
+    // Deduct quantities from the most recent inventory records
+    for (const bottle of updatedBottles) {
+      const { itemCode, quantity } = bottle;
+      let remainingQuantity = quantity;
+
+      // Get all inventory documents with the itemCode, sorted by date descending
+      const inventories = await Inventory.find({
+        'bottles.itemCode': itemCode,
+      })
+        .sort({ date: -1 })
+        .session(session);
+
+      for (const inventory of inventories) {
+        if (remainingQuantity <= 0) break;
+
+        const inventoryBottle = inventory.bottles.find((b) => b.itemCode === itemCode);
+        if (!inventoryBottle || inventoryBottle.availablequantity <= 0) continue;
+
+        const deductQuantity = Math.min(remainingQuantity, inventoryBottle.availablequantity);
+        inventoryBottle.availablequantity -= deductQuantity;
+        inventoryBottle.soldquantity += deductQuantity;
+        inventoryBottle.totalreavanue += deductQuantity * inventoryBottle.sellingprice;
+        inventoryBottle.profitearn +=
+          deductQuantity * (inventoryBottle.sellingprice - inventoryBottle.pricePerUnit);
+
+        remainingQuantity -= deductQuantity;
+
+        await inventory.save({ session });
+      }
+
+      if (remainingQuantity > 0) {
+        throw new Error(`Failed to deduct quantity for itemCode '${itemCode}'. Remaining: ${remainingQuantity}`);
+      }
+    }
+
+    return { success: true, updatedBottles };
+  } catch (err) {
+    throw new Error(`Inventory check failed: ${err.message}`);
+  }
+};
 // ✅ Export all functions
 module.exports = {
   addInventoryItem,
@@ -210,5 +308,7 @@ module.exports = {
   editInventoryItem,
   deleteInventoryItem,
   searchInventoryItems,
-  updateInventoryByItemCode
+  updateInventoryByItemCode,
+  checkInventoryAvailability,
+  isValidObjectId,
 };
