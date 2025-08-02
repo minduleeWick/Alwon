@@ -17,7 +17,8 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
+  const [resetUsername, setResetUsername] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
 
   const navigate = useNavigate();
 
@@ -41,12 +42,26 @@ const Login: React.FC = () => {
   };
 
   const handleDialogOpen = () => setOpenDialog(true);
-  const handleDialogClose = () => setOpenDialog(false);
+  const handleDialogClose = () => {
+    setOpenDialog(false);
+    setResetUsername('');
+    setDialogMessage('');
+    if (dialogMessage.includes('successfully')) {
+      navigate('/'); // Navigate to login page on success
+    }
+  };
 
-  const handleResetSubmit = () => {
-    // You can trigger an API call here if needed
-    alert(`Reset link sent to: ${resetEmail}`);
-    handleDialogClose();
+  const handleResetSubmit = async () => {
+    try {
+      const res = await axios.post('http://localhost:5000/api/users/forgot-password', {
+        username: resetUsername,
+      });
+
+      setDialogMessage(res.data.message || 'Password reset request sent successfully');
+      setResetUsername('');
+    } catch (err: any) {
+      setDialogMessage(err.response?.data?.message || 'Error sending reset request');
+    }
   };
 
   return (
@@ -96,20 +111,36 @@ const Login: React.FC = () => {
       <Dialog open={openDialog} onClose={handleDialogClose}>
         <DialogTitle>Reset Password</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Enter your email address. We'll send you a password reset link.
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Enter your username and We'll send you a password.
           </Typography>
           <TextField
             fullWidth
-            label="Email Address"
-            type="email"
-            value={resetEmail}
-            onChange={e => setResetEmail(e.target.value)}
+            label="Username"
+            type="text"
+            value={resetUsername}
+            onChange={e => setResetUsername(e.target.value)}
+            required
           />
+          {dialogMessage && (
+            <Typography
+              variant="body2"
+              color={dialogMessage.includes('Error') ? 'error' : 'success'}
+              sx={{ mt: 2 }}
+            >
+              {dialogMessage}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleResetSubmit}>Send Reset Link</Button>
+          <Button
+            variant="contained"
+            onClick={handleResetSubmit}
+            disabled={!resetUsername.trim()}
+          >
+            Send
+          </Button>
         </DialogActions>
       </Dialog>
     </div>

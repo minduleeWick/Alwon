@@ -15,131 +15,53 @@ const Sidebar: React.FC = () => {
   const handleToggle = () => setOpen(!open);
 
   return (
-    // <nav className="sidebar">
-    //   <div className="sidebar-logo">
-    //     <img src="/logo.png" alt="Company Logo" />
-    //   </div>
-    //   <div className="sidebar-menu-container">
-    //   <ul className="sidebar-menu">
-    //     <li className={location.pathname === '/dashboard' ? 'active' : ''}>
-    //       <Link to="/dashboard">
-    //         <DashboardIcon className="icon" />
-    //         <span>Dashboard</span>
-    //       </Link>
-    //     </li>
-    //     <li className={location.pathname === '/inventory' ? 'active' : ''}>
-    //       <Link to="/inventory">
-    //         <InventoryIcon className="icon" />
-    //         <span>Inventory</span>
-    //       </Link>
-    //     </li>
-    //     <li className={location.pathname === '/billing' ? 'active' : ''}>
-    //       <Link to="/billing">
-    //         <ReceiptIcon className="icon" />
-    //         <span>Billing</span>
-    //       </Link>
-    //     </li>
-    //     {/* {role === 'admin' && (
-    //       <>
-    //         <li className={location.pathname === '/reports' ? 'active' : ''}>
-    //           <Link to="/reports">
-    //             <BarChartIcon className="icon" />
-    //             <span>Reports</span>
-    //           </Link>
-    //         </li>
-    //         <li className={location.pathname === '/users' ? 'active' : ''}>
-    //           <Link to="/users">
-    //             <PeopleAltIcon className="icon" />
-    //             <span>Users</span>
-    //           </Link>
-    //         </li>
-    //       </>
-    //     )} */}
-    //          {/* <li className={location.pathname === '/reports' ? 'active' : ''}>
-    //           <Link to="/reports">
-    //             <BarChartIcon className="icon" />
-    //             <span>Reports</span>
-    //           </Link>
-    //         </li> */}
-    //         <li className={location.pathname === '/users' ? 'active' : ''}>
-    //           <Link to="/users">
-    //             <PeopleAltIcon className="icon" />
-    //             <span>Users</span>
-    //           </Link>
-    //         </li>
-    //         <li className={location.pathname === '/customer' ? 'active' : ''}>
-    //           <Link to="/customer">
-    //             <PeopleAltIcon className="icon" />
-    //             <span>Customer</span>
-    //           </Link>
-    //         </li>
-    //         <li className={location.pathname===('/bill-history') ? 'active' : ''}>
-    //           <div className="sidebar-submenu">
-    //             <Link to="/bill-history">
-    //               <HistoryIcon className="icon" /> Bill History
-    //             </Link>
-    //             <ul className="nested-submenu">
-    //               <li className={location.pathname === '/bill-history/credit' ? 'active' : ''}>
-    //                 <Link to="/bill-history/credit">Credit Bills</Link>
-    //               </li>
-    //             </ul>
-    //             <ul className="nested-submenu">
-    //               <li className={location.pathname === '/bill-history/cheques' ? 'active' : ''}>
-    //                 <Link to="/bill-history/cheques">Cheque Payments</Link>
-    //               </li>
-    //             </ul>
-    //           </div>
-    //         </li>
-
-    //   </ul>
-    //   </div>
-    // </nav>
     <>
       <button className="sidebar-toggle" onClick={handleToggle}>
         ☰
       </button>
       <nav className={`sidebar${open ? ' open' : ''}`}>
-        <div className="sidebar-logo">
-          <img src="/logo.png" alt="Company Logo" />
-        </div>
-        <ul className="sidebar-menu">
-          <li className={location.pathname === '/dashboard' ? 'active' : ''}>
-            <Link to="/dashboard">
-              <DashboardIcon className="icon" />
-              <span>Dashboard</span>
-            </Link>
-          </li>
-          <li className={location.pathname === '/inventory' ? 'active' : ''}>
-            <Link to="/inventory">
-              <InventoryIcon className="icon" />
-              <span>Inventory</span>
-            </Link>
-          </li>
-          <li className={location.pathname === '/billing' ? 'active' : ''}>
-            <Link to="/billing">
-              <ReceiptIcon className="icon" />
-              <span>Billing</span>
-            </Link>
-          </li>
-          <li className={location.pathname === '/reports' ? 'active' : ''}>
-            <Link to="/reports">
-              <BarChartIcon className="icon" />
-              <span>Reports</span>
-            </Link>
-          </li>
-          <li className={location.pathname === '/users' ? 'active' : ''}>
-            <Link to="/users">
-              <PeopleAltIcon className="icon" />
-              <span>Users</span>
-            </Link>
-          </li>
-          <li className={location.pathname === '/customer' ? 'active' : ''}>
+        <div className="sidebar-scroll-container">
+          <div className="sidebar-logo">
+            <img src="/logo.png" alt="Company Logo" />
+          </div>
+          <ul className="sidebar-menu">
+            <li className={location.pathname === '/dashboard' ? 'active' : ''}>
+              <Link to="/dashboard">
+                <DashboardIcon className="icon" />
+                <span>Dashboard</span>
+              </Link>
+            </li>
+            <li className={location.pathname === '/inventory' ? 'active' : ''}>
+              <Link to="/inventory">
+                <InventoryIcon className="icon" />
+                <span>Inventory</span>
+              </Link>
+            </li>
+            <li className={location.pathname === '/billing' ? 'active' : ''}>
+              <Link to="/billing">
+                <ReceiptIcon className="icon" />
+                <span>Billing</span>
+              </Link>
+            </li>
+            <li className={location.pathname === '/reports' ? 'active' : ''}>
+              <Link to="/reports">
+                <BarChartIcon className="icon" />
+                <span>Reports</span>
+              </Link>
+            </li>
+            <li className={location.pathname === '/users' ? 'active' : ''}>
+              <Link to="/users">
+                <PeopleAltIcon className="icon" />
+                <span>Users</span>
+              </Link>
+            </li>
+            <li className={location.pathname === '/customer' ? 'active' : ''}>
               <Link to="/customer">
                 <PeopleAltIcon className="icon" />
                 <span>Customer</span>
               </Link>
             </li>
-            <li className={location.pathname===('/bill-history') ? 'active' : ''}>
+            <li className={location.pathname === '/bill-history' ? 'active' : ''}>
               <div className="sidebar-submenu">
                 <Link to="/bill-history">
                   <HistoryIcon className="icon" /> Bill History
@@ -156,7 +78,8 @@ const Sidebar: React.FC = () => {
                 </ul>
               </div>
             </li>
-        </ul>
+          </ul>
+        </div>
       </nav>
     </>
   );
