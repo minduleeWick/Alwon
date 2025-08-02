@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Customer = require('../models/Customer');
+const Payment = require('../models/Payments');
 
 // ✅ Helper to validate MongoDB ObjectId
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -107,6 +108,55 @@ const searchCustomers = async (req, res) => {
   }
 };
 
+const getAllCustomerCreditSummaries = async (req, res) => {
+  try {
+    // Aggregate payment data grouped by customerId
+    const summaries = await Payment.aggregate([
+      {
+        $match: { customerId: { $ne: null } } // Only registered customers
+      },
+      {
+        $group: {
+          _id: '$customerId',
+          totalAmount: { $sum: { $ifNull: ['$amount', 0] } },
+          totalPayment: { $sum: { $ifNull: ['$paidAmount', 0] } }
+        }
+      },
+      {
+        $addFields: {
+          balance: { $subtract: ['$totalAmount', '$totalPayment'] }
+        }
+      },
+      {
+        $lookup: {
+          from: 'customers',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'customer'
+        }
+      },
+      {
+        $unwind: '$customer'
+      },
+      {
+        $project: {
+          customerId: '$_id',
+          customername: '$customer.customername',
+          email: '$customer.email',
+          phone: '$customer.phone',
+          totalAmount: 1,
+          totalPayment: 1,
+          balance: 1
+        }
+      }
+    ]);
+
+    res.status(200).json(summaries);
+  } catch (err) {
+    console.error('Error fetching all credit summaries:', err);
+    res.status(500).json({ error: 'Server error while fetching all credit summaries.' });
+  }
+};
 // ✅ Export all functions
 module.exports = {
   addCustomer,
@@ -114,4 +164,5 @@ module.exports = {
   deleteCustomer,
   editCustomer,
   searchCustomers,
+  getAllCustomerCreditSummaries,
 };

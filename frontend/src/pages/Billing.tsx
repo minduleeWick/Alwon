@@ -13,7 +13,7 @@ import InvoicePreview from '../components/BillPrint';
 
 interface Customer {
   _id: string;
-  name: string;
+  customername: string;
   phone: string;
 }
 
@@ -46,7 +46,9 @@ const Billing: React.FC = () => {
     severity: 'success' as 'success' | 'error' | 'warning',
   });
   const printRef = useRef<HTMLDivElement>(null);
-
+  
+  const [creditSummaries, setCreditSummaries] = useState<any[]>([]);
+  
   const token = localStorage.getItem('token');
 
   // Fetch customers
@@ -76,6 +78,32 @@ const Billing: React.FC = () => {
     };
     fetchCustomers();
   }, []);
+  // Fetch credit summaries
+  useEffect(() => {
+    const fetchCreditSummaries = async () => {
+      try {
+        const res = await axios.get('/api/payments/credit-summaries', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Fetched credit summaries:', res.data);
+        setCreditSummaries(res.data);
+      } catch (err) {
+        console.error('Error fetching credit summaries:', err);
+        setSnackbar({ open: true, message: 'Failed to fetch credit summaries', severity: 'error' });
+      }
+    };
+    fetchCreditSummaries();
+  }, []);
+
+  // Update remainingAmount when a customer is selected
+  useEffect(() => {
+    if (tabIndex === 0 && selectedCustomer) {
+      const summary = creditSummaries.find((s) => s.customerId === selectedCustomer);
+      setRemainingAmount(summary ? summary.balance : 0);
+    } else {
+      setRemainingAmount(0);
+    }
+  }, [tabIndex, selectedCustomer, creditSummaries]);
 
   // Recalculate credit amount
   useEffect(() => {
@@ -97,11 +125,11 @@ const Billing: React.FC = () => {
   };
 
   const filteredCustomers = customers.filter((c) =>
-    c.name?.toLowerCase().includes(customerSearch.toLowerCase())
+    c.customername?.toLowerCase().includes(customerSearch.toLowerCase())
   );
 
   const customerName = tabIndex === 0
-    ? customers.find((c) => c._id === selectedCustomer)?.name || ''
+    ? customers.find((c) => c._id === selectedCustomer)?.customername || ''
     : guestName;
 
   const customerPhone = tabIndex === 0
@@ -260,10 +288,10 @@ const Billing: React.FC = () => {
                         key={c._id}
                         onClick={() => {
                           setSelectedCustomer(c._id);
-                          setCustomerSearch(c.name);
+                          setCustomerSearch(c.customername);
                         }}
                       >
-                        {c.name} ({c.phone})
+                        {c.customername} ({c.phone})
                       </li>
                     ))
                   ) : (
