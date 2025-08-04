@@ -32,6 +32,8 @@ function App() {
         <Route path="/bill-history/credit" element={<ProtectedRoute><CreditBills /></ProtectedRoute>} />
         <Route path="/bill-history/cheques" element={<ProtectedRoute><ChequePayments /></ProtectedRoute>} />
 
+        {/* Optional utility routes */}
+
         {/* Optional utility route */}
         <Route path="/pageloader" element={<Pageloader />} />
         <Route path="/chatbot" element={<Chatbot />} />
