@@ -77,7 +77,7 @@ const Inventory: React.FC = () => {
 
   const fetchInventory = async () => {
     try {
-      const response = await axios.get('https://alwon.onrender.com/api/inventory');
+      const response = await axios.get('http://localhost:5000/api/inventory');
       setInventory(response.data);
     } catch {
       setSnackbar({ open: true, message: 'Failed to fetch inventory', severity: 'error' });
@@ -105,7 +105,7 @@ const Inventory: React.FC = () => {
   const handleDelete = async () => {
     try {
       if (!currentItem?._id) throw new Error("Missing inventory ID");
-      await axios.delete(`https://alwon.onrender.com/api/inventory/${currentItem._id}`);
+      await axios.delete(`http://localhost:5000/api/inventory/${currentItem._id}`);
       await fetchInventory();
       setSnackbar({ open: true, message: 'Deleted successfully', severity: 'success' });
     } catch (err: any) {
@@ -141,12 +141,12 @@ const Inventory: React.FC = () => {
 
       if (_id && _id !== '') {
         // Edit mode: Call PUT endpoint
-        await axios.put(`https://alwon.onrender.com/api/inventory/${_id}`, payload);
+        await axios.put(`http://localhost:5000/api/inventory/${_id}`, payload);
         setSnackbar({ open: true, message: 'Inventory updated!', severity: 'success' });
         setEditOpen(false);
       } else {
         // Add mode: Call POST endpoint
-        await axios.post('https://alwon.onrender.com/api/inventory/add', payload);
+        await axios.post('http://localhost:5000/api/inventory/add', payload);
         setSnackbar({ open: true, message: 'Inventory added!', severity: 'success' });
         setOpen(false);
       }
