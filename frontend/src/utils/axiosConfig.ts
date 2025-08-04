@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  baseURL: 'http://localhost:5000',
+  baseURL: 'https://alwon.onrender.com',
 });
 
 instance.interceptors.request.use((config) => {
