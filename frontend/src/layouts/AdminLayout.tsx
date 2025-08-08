@@ -1,4 +1,3 @@
-// ---- frontend/src/layouts/AdminLayout.tsx ----
 import React from 'react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -9,13 +8,36 @@ interface Props {
 
 const AdminLayout: React.FC<Props> = ({ children }) => {
   return (
-    <div style={{ display: 'flex' }}>
-      <Sidebar />
-      <div style={{ marginLeft: 220, flex: 1 }}>
+    <div>
+      {/* TopBar fixed at top, full width */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 60,
+        zIndex: 1
+      }}>
         <TopBar />
-        <main style={{ padding: '20px' }}>
-          {children}
-        </main>
+      </div>
+      {/* Sidebar fixed at left, above TopBar */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: 220,
+        height: '100vh',
+        zIndex: 2
+      }}>
+        <Sidebar />
+      </div>
+      {/* Main content, below TopBar and right of Sidebar */}
+      <div style={{
+        marginLeft: 220,
+        marginTop: 60,
+        padding: '20px'
+      }}>
+        {children}
       </div>
     </div>
   );

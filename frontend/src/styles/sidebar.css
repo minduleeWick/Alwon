@@ -85,15 +85,15 @@
 .sidebar-toggle {
   display: none;
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: 3px;
+  left: 10px;
   z-index: 1001;
   background: #002B5B;
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 28px;
-  padding: 6px 12px;
+  font-size: 26px;
+  padding: 2px 9px;
   cursor: pointer;
 }
 
