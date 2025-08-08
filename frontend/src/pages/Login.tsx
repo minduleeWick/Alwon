@@ -12,6 +12,8 @@ import {
 } from '@mui/material';
 import '../styles/theme.css';
 
+const API_BASE = 'https://alwon.onrender.com/api/users';
+
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,54 +21,71 @@ const Login: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [resetUsername, setResetUsername] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
+  // Handle login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
     try {
-      const res = await axios.post('https://alwon.onrender.com/api/users/login', {
+      const res = await axios.post(`${API_BASE}/login`, {
         username,
         password,
       });
-
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('username', res.data.username);
       localStorage.setItem('role', res.data.role);
-
-      setErrorMsg('');
+      setLoading(false);
       navigate('/dashboard');
     } catch (err: any) {
-      setErrorMsg('Invalid username or password');
+      setLoading(false);
+      setErrorMsg(
+        err.response?.data?.error ||
+        'Invalid username or password'
+      );
     }
   };
 
+  // Open forgot password dialog
   const handleDialogOpen = () => setOpenDialog(true);
+
+  // Close forgot password dialog
   const handleDialogClose = () => {
     setOpenDialog(false);
     setResetUsername('');
     setDialogMessage('');
-    if (dialogMessage.includes('successfully')) {
-      navigate('/'); // Navigate to login page on success
+    if (dialogMessage.toLowerCase().includes('success')) {
+      navigate('/');
     }
   };
 
+  // Handle forgot password submit
   const handleResetSubmit = async () => {
+    setDialogMessage('');
+    setLoading(true);
     try {
-      const res = await axios.post('https://alwon.onrender.com/api/users/forgot-password', {
+      const res = await axios.post(`${API_BASE}/forgot-password`, {
         username: resetUsername,
       });
-
       setDialogMessage(res.data.message || 'Password reset request sent successfully');
       setResetUsername('');
+      setLoading(false);
     } catch (err: any) {
-      setDialogMessage(err.response?.data?.message || 'Error sending reset request');
+      setLoading(false);
+      setDialogMessage(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Error sending reset request'
+      );
     }
   };
 
   return (
     <div className="login-page">
-      {/* ✅ Logo at the top-right corner */}
+      {/* Logo at the top-right corner */}
       <div className="login-logo-wrapper">
         <img src="./logo.png" alt="Company Logo" className="login-logo" />
       </div>
@@ -80,6 +99,7 @@ const Login: React.FC = () => {
             onChange={e => setUsername(e.target.value)}
             placeholder="Username"
             required
+            disabled={loading}
           />
           <input
             type="password"
@@ -87,6 +107,7 @@ const Login: React.FC = () => {
             onChange={e => setPassword(e.target.value)}
             placeholder="Password"
             required
+            disabled={loading}
           />
 
           {errorMsg && (
@@ -95,7 +116,9 @@ const Login: React.FC = () => {
             </Typography>
           )}
 
-          <button type="submit">Login</button>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
 
           <Typography
             variant="body2"
@@ -107,12 +130,12 @@ const Login: React.FC = () => {
         </form>
       </div>
 
-      {/* 🔒 Forgot Password Dialog */}
+      {/* Forgot Password Dialog */}
       <Dialog open={openDialog} onClose={handleDialogClose}>
         <DialogTitle>Reset Password</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Enter your username and We'll send you a password.
+            Enter your username and we'll send you a password reset link.
           </Typography>
           <TextField
             fullWidth
@@ -121,11 +144,12 @@ const Login: React.FC = () => {
             value={resetUsername}
             onChange={e => setResetUsername(e.target.value)}
             required
+            disabled={loading}
           />
           {dialogMessage && (
             <Typography
               variant="body2"
-              color={dialogMessage.includes('Error') ? 'error' : 'success'}
+              color={dialogMessage.toLowerCase().includes('error') ? 'error' : 'success'}
               sx={{ mt: 2 }}
             >
               {dialogMessage}
@@ -133,13 +157,13 @@ const Login: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDialogClose}>Cancel</Button>
+          <Button onClick={handleDialogClose} disabled={loading}>Cancel</Button>
           <Button
             variant="contained"
             onClick={handleResetSubmit}
-            disabled={!resetUsername.trim()}
+            disabled={!resetUsername.trim() || loading}
           >
-            Send
+            {loading ? 'Sending...' : 'Send'}
           </Button>
         </DialogActions>
       </Dialog>

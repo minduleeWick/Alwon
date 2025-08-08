@@ -128,7 +128,7 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `http://localhost:3000/reset-password/${token}`;
+    const resetUrl = `https://alwon.onrender.com/api/users/reset-password/${token}`;
 
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
