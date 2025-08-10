@@ -8,7 +8,7 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 // ✅ Add a new customer
 const addCustomer = async (req, res) => {
   try {
-    const { customername, idnumber, address, phone, email, type } = req.body;
+    const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
 
     // Check for missing fields
     if (!customername || !idnumber || !address || !phone || !email || !type) {
@@ -16,7 +16,7 @@ const addCustomer = async (req, res) => {
     }
 
     // Create and save the customer
-    const customer = new Customer({ customername, idnumber, address, phone, email, type });
+    const customer = new Customer({ customername, idnumber, address, phone, email, type, priceRates });
     await customer.save();
     res.status(201).json(customer);
   } catch (err) {
@@ -60,7 +60,7 @@ const deleteCustomer = async (req, res) => {
 // ✅ Edit/update a customer by ID
 const editCustomer = async (req, res) => {
   const { id } = req.params;
-  const { customername, idnumber, address, phone, email, type } = req.body;
+  const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
 
   if (!isValidObjectId(id)) {
     return res.status(400).json({ error: 'Invalid customer ID format.' });
@@ -73,7 +73,7 @@ const editCustomer = async (req, res) => {
   try {
     const updatedCustomer = await Customer.findByIdAndUpdate(
       id,
-      { customername, idnumber, address, phone, email, type },
+      { customername, idnumber, address, phone, email, type, priceRates },
       { new: true, runValidators: true }
     );
 
