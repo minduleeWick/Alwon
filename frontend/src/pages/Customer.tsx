@@ -10,11 +10,14 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
+
 interface Customer {
   name: string;
   phone: string;
   balance: number;
   createdAt: string;
+  bottlePrices: { [key: string]: number };
 }
 
 const sampleCustomers: Customer[] = [
@@ -23,12 +26,14 @@ const sampleCustomers: Customer[] = [
     phone: '0771234567',
     balance: 1500,
     createdAt: '2025-07-01',
+    bottlePrices: { '500ml': 25, '1L': 50, '1.5L': 75, '5L': 200, '19L': 500 },
   },
   {
     name: 'Jane Smith',
     phone: '0719876543',
     balance: 0,
     createdAt: '2025-07-05',
+    bottlePrices: { '500ml': 30, '1L': 55, '1.5L': 80, '5L': 220, '19L': 550 },
   },
 ];
 
@@ -43,6 +48,7 @@ const Customers: React.FC = () => {
     phone: '',
     balance: 0,
     createdAt: new Date().toISOString().split('T')[0],
+    bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
   });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -97,6 +103,7 @@ const Customers: React.FC = () => {
       phone: '',
       balance: 0,
       createdAt: new Date().toISOString().split('T')[0],
+      bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
 
@@ -115,11 +122,22 @@ const Customers: React.FC = () => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Customer Name</strong></TableCell>
-                  <TableCell><strong>Phone</strong></TableCell>
-                  <TableCell><strong>Remaining Balance (Rs)</strong></TableCell>
-                  <TableCell><strong>Created At</strong></TableCell>
-                  <TableCell><strong>Actions</strong></TableCell>
+                  <TableCell align="center"><strong>Customer Name</strong></TableCell>
+                  <TableCell align="center"><strong>Phone</strong></TableCell>
+                  <TableCell align="center"><strong>Remaining Balance (Rs)</strong></TableCell>
+                  <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Prices (Rs)</strong></TableCell>
+                  <TableCell align="center"><strong>Created At</strong></TableCell>
+                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell />
+                  <TableCell />
+                  <TableCell />
+                  {bottleTypes.map(type => (
+                    <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
+                  ))}
+                  <TableCell />
+                  <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -127,11 +145,14 @@ const Customers: React.FC = () => {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((customer, index) => (
                     <TableRow key={index}>
-                      <TableCell>{customer.name}</TableCell>
-                      <TableCell>{customer.phone}</TableCell>
-                      <TableCell>Rs. {customer.balance.toFixed(2)}</TableCell>
-                      <TableCell>{customer.createdAt}</TableCell>
-                      <TableCell>
+                      <TableCell align="center">{customer.name}</TableCell>
+                      <TableCell align="center">{customer.phone}</TableCell>
+                      <TableCell align="center">Rs. {customer.balance.toFixed(2)}</TableCell>
+                      {bottleTypes.map(type => (
+                        <TableCell key={type} align="center">Rs. {customer.bottlePrices[type] || 0}</TableCell>
+                      ))}
+                      <TableCell align="center">{customer.createdAt}</TableCell>
+                      <TableCell align="center">
                         <IconButton onClick={() => handleEdit(index)} color="primary">
                           <EditIcon />
                         </IconButton>
@@ -160,12 +181,55 @@ const Customers: React.FC = () => {
         </Paper>
 
         {/* Add Dialog */}
-        <Dialog open={open} onClose={handleClose}>
+        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
           <DialogTitle>Add Customer</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: 300 }}>
-            <TextField label="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-            <TextField label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
-            <TextField label="Balance" type="number" value={formData.balance} onChange={e => setFormData({ ...formData, balance: +e.target.value })} />
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '24px', paddingTop: '20px' }}>
+            <TextField 
+              label="Name" 
+              value={formData.name} 
+              onChange={e => setFormData({ ...formData, name: e.target.value })} 
+              fullWidth
+              sx={{ marginTop: '8px' }}
+            />
+            <TextField 
+              label="Phone" 
+              value={formData.phone} 
+              onChange={e => setFormData({ ...formData, phone: e.target.value })} 
+              fullWidth
+            />
+            <TextField 
+              label="Balance" 
+              type="number" 
+              value={formData.balance} 
+              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
+              fullWidth
+            />
+            
+            {/* Bottle Prices Section */}
+            <div style={{ marginTop: '20px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+             
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                {bottleTypes.map(type => (
+                  <TextField
+                    key={type}
+                    label={`${type} Price`}
+                    type="number"
+                    value={formData.bottlePrices[type] || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bottlePrices: {
+                        ...formData.bottlePrices,
+                        [type]: +e.target.value || 0
+                      }
+                    })}
+                    size="small"
+                    InputProps={{
+                      startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleAddCustomer} variant="contained">Save</Button>
@@ -174,12 +238,55 @@ const Customers: React.FC = () => {
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={editOpen} onClose={handleEditClose}>
+        <Dialog open={editOpen} onClose={handleEditClose} maxWidth="md" fullWidth>
           <DialogTitle>Edit Customer</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: 300 }}>
-            <TextField label="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-            <TextField label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
-            <TextField label="Balance" type="number" value={formData.balance} onChange={e => setFormData({ ...formData, balance: +e.target.value })} />
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '24px', paddingTop: '20px' }}>
+            <TextField 
+              label="Name" 
+              value={formData.name} 
+              onChange={e => setFormData({ ...formData, name: e.target.value })} 
+              fullWidth
+              sx={{ marginTop: '8px' }}
+            />
+            <TextField 
+              label="Phone" 
+              value={formData.phone} 
+              onChange={e => setFormData({ ...formData, phone: e.target.value })} 
+              fullWidth
+            />
+            <TextField 
+              label="Balance" 
+              type="number" 
+              value={formData.balance} 
+              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
+              fullWidth
+            />
+            
+            {/* Bottle Prices Section */}
+            <div style={{ marginTop: '20px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#fafafa' }}>
+              <h4 style={{ margin: '0 0 16px 0', color: '#333', fontSize: '16px' }}>Bottle Prices (Rs):</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                {bottleTypes.map(type => (
+                  <TextField
+                    key={type}
+                    label={`${type} Price`}
+                    type="number"
+                    value={formData.bottlePrices[type] || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bottlePrices: {
+                        ...formData.bottlePrices,
+                        [type]: +e.target.value || 0
+                      }
+                    })}
+                    size="small"
+                    InputProps={{
+                      startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleUpdateCustomer} variant="contained">Update</Button>
