@@ -4,6 +4,12 @@ const Customer = require('../models/Customer');
 const Inventory = require('../models/Inventory');
 
 
+function generateUniqueInvoiceId() {
+  const timestamp = Date.now().toString().slice(-5); // last 5 digits of time
+  const randomNum = Math.floor(Math.random() * 100);
+  return `INV${timestamp}${String(randomNum).padStart(2, '0')}`;
+}
+
 const issueBill = async (req, res) => {
   try {
     const {
@@ -35,6 +41,9 @@ const issueBill = async (req, res) => {
       return res.status(400).json({ error: 'Invalid customerType. Must be registered or guest.' });
     }
 
+    let customerName = '';
+    let customerPhone = '';
+
     // For registered customers, check if customerId exists
     if (customerType === 'registered') {
       if (!customerId) {
@@ -44,6 +53,8 @@ const issueBill = async (req, res) => {
       if (!customer) {
         return res.status(404).json({ error: 'Customer not found.' });
       }
+      customerName = customer.customername;
+      customerPhone = customer.phone;
     }
 
     // For guests, validate guestInfo
@@ -51,6 +62,8 @@ const issueBill = async (req, res) => {
       if (!guestInfo || !guestInfo.name) {
         return res.status(400).json({ error: 'Guest info (at least name) is required for guest payments.' });
       }
+      customerName = guestInfo.name;
+      customerPhone = guestInfo.phone || '';
     }
 
     // Validate bottles array
@@ -98,6 +111,25 @@ const issueBill = async (req, res) => {
       }
     }
 
+    // Determine status based on payment method and amounts (all lowercase)
+    let computedStatus = 'pending';
+    const pm = paymentMethod ? paymentMethod.toLowerCase() : '';
+    if (pm === 'cash') {
+      computedStatus = 'paid';
+    } else if (pm === 'credit') {
+      const paid = Number(payment) || 0;
+      const due = Number(deupayment) || 0;
+      if (due <= 0) {
+        computedStatus = 'paid';
+      } else if (paid === 0) {
+        computedStatus = 'unpaid';
+      } else {
+        computedStatus = 'partially paid';
+      }
+    } else if (pm === 'cheque') {
+      computedStatus = 'pending';
+    }
+
     // After inventory update for all bottles, save payment
     const paymentDoc = new Payment({
       customerId: customerId || undefined,
@@ -111,10 +143,11 @@ const issueBill = async (req, res) => {
       deupayment,
       creaditlimit,
       paymentMethod,
-      status: status || 'Pending',
+      status: computedStatus,
       paymentDate: new Date(),
       bottles,
-      // Add cheque details when applicable
+      invoiceNo: generateUniqueInvoiceId(),
+      customerType , // Only save customerName for registered
       ...(paymentMethod === 'Cheque' && {
         chequeNo,
         chequeDate,

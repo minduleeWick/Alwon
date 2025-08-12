@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Table,
@@ -16,6 +16,7 @@ import {
   TextField,
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
+import axios from 'axios';
 
 interface Bill {
   id: string;
@@ -29,47 +30,32 @@ interface Bill {
   paymentMethod: 'credit' | 'cash';
 }
 
-const sampleBills: Bill[] = [
-  {
-    id: '1',
-    invoiceNo: 'INV001',
-    createdAt: '2025-07-10',
-    customerName: 'John Doe',
-    totalAmount: 5000,
-    paidAmount: 2000,
-    remainingAmount: 3000,
-    status: 'pending',
-    paymentMethod: 'credit',
-  },
-  {
-    id: '2',
-    invoiceNo: 'INV002',
-    createdAt: '2025-07-11',
-    customerName: 'Jane Smith',
-    totalAmount: 3000,
-    paidAmount: 1000,
-    remainingAmount: 2000,
-    status: 'pending',
-    paymentMethod: 'credit',
-  },
-  {
-    id: '3',
-    invoiceNo: 'INV003',
-    createdAt: '2025-07-12',
-    customerName: 'Alice Johnson',
-    totalAmount: 2500,
-    paidAmount: 2500,
-    remainingAmount: 0,
-    status: 'closed',
-    paymentMethod: 'credit',
-  },
-];
-
 const CreditBills = () => {
-  const [bills, setBills] = useState<Bill[]>(sampleBills);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/payments/history')
+      .then(res => {
+        const mapped = res.data
+          .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'credit')
+          .map((item: any, idx: number) => ({
+            id: item._id || `${idx + 1}`,
+            invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+            createdAt: item.paymentDate ? item.paymentDate.split('T')[0] : '',
+            customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+            totalAmount: item.amount || 0,
+            paidAmount: item.payment || 0,
+            remainingAmount: item.deupayment || 0,
+            status: (item.status || '').toLowerCase() === 'closed' || (item.deupayment || 0) <= 0 ? 'closed' : 'pending',
+            paymentMethod: 'credit',
+          }));
+        setBills(mapped);
+      })
+      .catch(() => setBills([]));
+  }, []);
 
   const handleOpen = (bill: Bill) => {
     setSelectedBill(bill);
@@ -105,6 +91,12 @@ const CreditBills = () => {
     handleClose();
   };
 
+  const getCreditStatus = (bill: Bill) => {
+    if (bill.remainingAmount <= 0) return 'Paid';
+    if (bill.paidAmount === 0) return 'Unpaid';
+    return 'Partially Paid';
+  };
+
   return (
     <AdminLayout>
       <div className="inventory-page">
@@ -135,9 +127,7 @@ const CreditBills = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {bills
-              .filter((bill) => bill.paymentMethod === 'credit' && bill.status !== 'closed')
-              .map((bill) => (
+            {bills.map((bill) => (
                 <TableRow key={bill.id}>
                   <TableCell align="center">{bill.invoiceNo}</TableCell>
                   <TableCell align="center">{bill.createdAt}</TableCell>
@@ -145,13 +135,13 @@ const CreditBills = () => {
                   <TableCell align="center">{bill.totalAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.paidAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.remainingAmount.toFixed(2)}</TableCell>
-                  <TableCell align="center">{bill.status}</TableCell>
+                  <TableCell align="center">{getCreditStatus(bill)}</TableCell>
                   <TableCell align="center">
                     <Button
                       variant="contained"
                       size="small"
                       onClick={() => handleOpen(bill)}
-                      disabled={bill.status === 'closed'}
+                      disabled={getCreditStatus(bill) === 'Paid'}
                     >
                       Pay
                     </Button>
@@ -191,3 +181,5 @@ const CreditBills = () => {
 };
 
 export default CreditBills;
+
+

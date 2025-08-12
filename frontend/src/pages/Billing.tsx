@@ -5,19 +5,22 @@ import { Tabs, Tab, Box } from '@mui/material';
 import InvoicePreview from '../components/BillPrint';
 import axios from 'axios';
 
-const customers = [
-  { id: 1, name: 'John Doe', phone: '0711234567' },
-  { id: 2, name: 'Jane Smith', phone: '0727654321' }
-];
-
 const bottleSizes = ['500ml', '1L', '5L', '20L'];
 
 type BottleKey = 'type' | 'quantity' | 'price';
 
+interface Customer {
+  _id: string;
+  customername: string;
+  phone: string;
+  priceRates?: { bottleType: string; price: number }[];
+}
+
 const Billing: React.FC = () => {
   const [tabIndex, setTabIndex] = useState(0); // 0: Registered, 1: Guest
   const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [bottles, setBottles] = useState([{ type: '', quantity: 1, price: 0 }]);
@@ -28,7 +31,16 @@ const Billing: React.FC = () => {
   const [paidAmount, setPaidAmount] = useState(0);
   const [success, setSuccess] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-    const [creditAmount, setCreditAmount] = useState(0); // ← added
+  const [creditAmount, setCreditAmount] = useState(0);
+
+  // Fetch customers from backend on mount
+  useEffect(() => {
+    if (tabIndex === 0) {
+      axios.get('http://localhost:5000/api/customers')
+        .then(res => setCustomers(res.data))
+        .catch(() => setCustomers([]));
+    }
+  }, [tabIndex]);
 
   // Recalculate credit amount whenever needed
   useEffect(() => {
@@ -41,26 +53,49 @@ const Billing: React.FC = () => {
     }
   }, [paymentMethod, paidAmount, bottles]);
 
+  // When selectedCustomer or bottles change, auto-fill bottle prices for registered customers
+  useEffect(() => {
+    if (tabIndex === 0 && selectedCustomer) {
+      const customer = customers.find(c => c._id === selectedCustomer);
+      if (customer && customer.priceRates) {
+        setBottles(prevBottles =>
+          prevBottles.map(bottle => {
+            if (!bottle.type) return bottle;
+            const rate = customer.priceRates!.find(r => r.bottleType === bottle.type);
+            return rate ? { ...bottle, price: rate.price } : bottle;
+          })
+        );
+      }
+    }
+    // eslint-disable-next-line
+  }, [selectedCustomer, bottles.map(b => b.type).join(','), tabIndex]);
+
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
     setSelectedCustomer(null);
     setGuestName('');
     setGuestPhone('');
+    setBottles([{ type: '', quantity: 1, price: 0 }]);
   };
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(customerSearch.toLowerCase())
+  // Remove duplicate customers by _id
+  const uniqueCustomers = Array.from(
+    new Map(customers.map(c => [c._id, c])).values()
+  );
+
+  const filteredCustomers = uniqueCustomers.filter(c =>
+    c.customername.toLowerCase().includes(customerSearch.toLowerCase())
   );
 
   const customerName = tabIndex === 0
-    ? customers.find(c => c.id === selectedCustomer)?.name || ''
+    ? customers.find(c => c._id === selectedCustomer)?.customername || ''
     : guestName;
 
   const customerPhone = tabIndex === 0
-    ? customers.find(c => c.id === selectedCustomer)?.phone || ''
+    ? customers.find(c => c._id === selectedCustomer)?.phone || ''
     : guestPhone;
 
-const handleAddBottle = () => {
+  const handleAddBottle = () => {
     setBottles([...bottles, { type: '', quantity: 1, price: 0 }]);
   };
 
@@ -80,6 +115,16 @@ const handleAddBottle = () => {
       bottle.price = Number(value);
     } else if (key === 'type') {
       bottle.type = String(value);
+      // Auto-fill price for registered customer
+      if (tabIndex === 0 && selectedCustomer) {
+        const customer = customers.find(c => c._id === selectedCustomer);
+        if (customer && customer.priceRates) {
+          const rate = customer.priceRates.find(r => r.bottleType === bottle.type);
+          if (rate) {
+            bottle.price = rate.price;
+          }
+        }
+      }
     }
 
     updated[index] = bottle;
@@ -91,44 +136,32 @@ const handleAddBottle = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Make sure bottles array is not empty and all required fields are present
+
     if (bottles.length === 0 || bottles.some(b => !b.type || b.quantity < 1 || b.price <= 0)) {
       alert('Please add at least one bottle with valid type, quantity, and price');
       return;
     }
-    
+
     const total = calculateTotal();
-    
+
     const billData = {
-      // Customer information
       customerId: tabIndex === 0 ? selectedCustomer : undefined,
       customerType: tabIndex === 0 ? 'registered' : 'guest',
       guestInfo: tabIndex === 1 ? { name: guestName, phone: guestPhone } : undefined,
-      
-      // Item details
       quantity: bottles.reduce((sum, b) => sum + b.quantity, 0),
-      itemCode: bottles[0].type, // Using the first bottle type as itemCode
+      itemCode: bottles[0].type,
       itemName: bottles.map(b => b.type).join(', '),
-      
-      // Payment details
       amount: total,
       payment: paymentMethod === 'credit' ? paidAmount : total,
       deupayment: paymentMethod === 'credit' ? creditAmount : 0,
       creaditlimit: 0,
-      
-      // Payment method details
-      paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1), // Capitalize first letter
-      status: 'Pending',
-      
-      // Cheque details when applicable
+      paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+      status: 'pending',
       ...(paymentMethod === 'cheque' && {
         chequeNo,
         chequeDate,
         remainingAmount
       }),
-      
-      // Bottle details in the format expected by the backend
       bottles: bottles.map(b => ({
         type: b.type,
         quantity: b.quantity,
@@ -137,7 +170,7 @@ const handleAddBottle = () => {
     };
 
     try {
-      const response = await axios.post('https://alwon.onrender.com/api/payments/issue', billData);
+      const response = await axios.post('http://localhost:5000/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
       setSuccess(true);
     } catch (error: any) {
@@ -155,9 +188,9 @@ const handleAddBottle = () => {
   return (
     <AdminLayout>
       <div className="card billing-card">
-      <div style={{textAlign: 'center',fontSize: 'x-large',fontWeight: 'bold',color: '#0d4483',fontFamily: "'Times New Roman', Times, serif"}}>
-        <h1>Invoice</h1>
-      </div>
+        <div style={{textAlign: 'center',fontSize: 'x-large',fontWeight: 'bold',color: '#0d4483',fontFamily: "'Times New Roman', Times, serif"}}>
+          <h1>Invoice</h1>
+        </div>
 
         <Box sx={{ width: '100%', bgcolor: 'background.paper', mb: 2 }}>
           <Tabs value={tabIndex} onChange={handleTabChange} centered>
@@ -181,11 +214,11 @@ const handleAddBottle = () => {
               {customerSearch && !selectedCustomer && (
                 <ul className="customer-list">
                   {filteredCustomers.map((c) => (
-                    <li key={c.id} onClick={() => {
-                      setSelectedCustomer(c.id);
-                      setCustomerSearch(c.name);
+                    <li key={c._id} onClick={() => {
+                      setSelectedCustomer(c._id);
+                      setCustomerSearch(c.customername);
                     }}>
-                      {c.name} ({c.phone})
+                      {c.customername} ({c.phone})
                     </li>
                   ))}
                   {filteredCustomers.length === 0 && <li>No matches found</li>}
@@ -219,7 +252,6 @@ const handleAddBottle = () => {
                 </label>
               </div>
             </div>
-
           )}
 
           <h3>Bottle Details</h3>
@@ -234,8 +266,14 @@ const handleAddBottle = () => {
                   onChange={(e) => handleBottleChange(idx, 'quantity', e.target.value)} required />
               </label>
               <label>Price:
-                <input type="number" min={0} step={0.01} value={item.price}
-                  onChange={(e) => handleBottleChange(idx, 'price', e.target.value)} required />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={item.price}
+                  onChange={(e) => handleBottleChange(idx, 'price', e.target.value)}
+                  required
+                />
               </label>
               <button type="button" className='delete-button' onClick={() => handleDeleteBottle(idx)}>🗑</button>
               {idx === bottles.length - 1 && (
@@ -349,13 +387,11 @@ const handleAddBottle = () => {
           )}
           </div>
 
-
-
           <button type="submit" className="button-submit">Submit Bill</button>
         </form>
 
         {success && (
-  <>
+          <>
             <InvoicePreview
               ref={printRef}
               customerName={customerName}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Table,
@@ -12,6 +12,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
+import axios from 'axios';
 
 interface ChequePayment {
   id: string;
@@ -23,38 +24,27 @@ interface ChequePayment {
   status: 'pending' | 'cleared' | 'bounced';
 }
 
-const initialData: ChequePayment[] = [
-  {
-    id: '1',
-    invoiceNo: 'INV010',
-    customerName: 'Nimal Perera',
-    chequeNo: 'CHQ98765',
-    dueDate: '2025-07-20',
-    amount: 4500,
-    status: 'pending',
-  },
-  {
-    id: '2',
-    invoiceNo: 'INV011',
-    customerName: 'Sunil Silva',
-    chequeNo: 'CHQ12345',
-    dueDate: '2025-07-15',
-    amount: 3000,
-    status: 'cleared',
-  },
-  {
-    id: '3',
-    invoiceNo: 'INV012',
-    customerName: 'Dilani Fernando',
-    chequeNo: 'CHQ54321',
-    dueDate: '2025-07-25',
-    amount: 2000,
-    status: 'pending',
-  },
-];
-
 const ChequePayments = () => {
-  const [cheques, setCheques] = useState<ChequePayment[]>(initialData);
+  const [cheques, setCheques] = useState<ChequePayment[]>([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/payments/history')
+      .then(res => {
+        const mapped = res.data
+          .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
+          .map((item: any, idx: number) => ({
+            id: item._id || `${idx + 1}`,
+            invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+            customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+            chequeNo: item.chequeNo || '',
+            dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
+            amount: item.amount || 0,
+            status: (item.status || '').toLowerCase() as ChequePayment['status'],
+          }));
+        setCheques(mapped);
+      })
+      .catch(() => setCheques([]));
+  }, []);
 
   const handleStatusChange = (id: string, newStatus: ChequePayment['status']) => {
     const updated = cheques.map((cheque) =>
@@ -123,3 +113,4 @@ const ChequePayments = () => {
 };
 
 export default ChequePayments;
+

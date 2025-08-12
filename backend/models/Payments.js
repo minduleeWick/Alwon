@@ -79,8 +79,8 @@ const paymentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Completed', 'Failed'],
-        default: 'Pending'
+        enum: ['pending', 'completed', 'failed', 'paid', 'unpaid', 'partially paid', 'cleared', 'bounced'],
+        default: 'pending'
     },
     bottles: [
         {
@@ -88,7 +88,24 @@ const paymentSchema = new mongoose.Schema({
             quantity: { type: Number, required: true, min: 1 },
             price: { type: Number, required: true, min: 0 }
         }
-    ]
+    ],
+    invoiceNo: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    customerName: {
+        type: String,
+        required: function() {
+            return this.customerType === 'registered';
+        },
+        trim: true
+    },
+    customerPhone: {
+        type: String,
+        required: false,
+        trim: true
+    }
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

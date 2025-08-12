@@ -1,5 +1,5 @@
 // src/pages/BillHistory.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow,
@@ -7,6 +7,7 @@ import {
   Button, TextField
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import axios from 'axios';
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
@@ -23,42 +24,38 @@ interface Bill {
   total: number;
   paymentType: string;
   status: string;
+  paidAmount?: number;
+  remainingAmount?: number;
 }
 
-const sampleBills: Bill[] = [
-  {
-    invoiceNo: 'INV001',
-    date: '2025-07-10',
-    customerName: 'John Doe',
-    bottles: [
-      { type: '500ml', quantity: 5 },
-      { type: '1L', quantity: 3 }
-    ],
-    total: 1000,
-    paymentType: 'Cash',
-    status: 'Paid'
-  },
-  {
-    invoiceNo: 'INV002',
-    date: '2025-07-12',
-    customerName: 'Jane Smith',
-    bottles: [
-      { type: '5L', quantity: 2 },
-      { type: '19L', quantity: 1 }
-    ],
-    total: 2200,
-    paymentType: 'Credit',
-    status: 'Unpaid'
-  }
-];
-
 const BillHistory: React.FC = () => {
-  const [bills, setBills] = useState<Bill[]>(sampleBills);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedBillIndex, setSelectedBillIndex] = useState<number | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<{ [key: string]: number }>({});
+
+  useEffect(() => {
+    // Fetch bills from backend
+    axios.get('http://localhost:5000/api/payments/history')
+      .then(res => {
+        // Map backend data to Bill[]
+        const mapped = res.data.map((item: any, idx: number) => ({
+          invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+          date: item.paymentDate ? item.paymentDate.split('T')[0] : '',
+          customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          bottles: item.bottles || [],
+          total: item.amount || 0,
+          paymentType: item.paymentMethod || '',
+          status: item.status || '',
+          paidAmount: item.payment ?? 0,
+          remainingAmount: item.deupayment ?? 0,
+        }));
+        setBills(mapped);
+      })
+      .catch(() => setBills([]));
+  }, []);
 
   const handleStatusChange = (index: number, newStatus: string) => {
     const updated = [...bills];
@@ -89,6 +86,23 @@ const BillHistory: React.FC = () => {
 
     setBills(updated);
     setReturnDialogOpen(false);
+  };
+
+  const getStatus = (bill: Bill) => {
+    const type = bill.paymentType?.toLowerCase();
+    if (type === 'credit') {
+      const paid = bill.paidAmount ?? 0;
+      const due = bill.remainingAmount ?? (bill.total - paid);
+      if (due <= 0) return 'paid';
+      if (paid === 0) return 'unpaid';
+      return 'partially paid';
+    } else if (type === 'cheque') {
+      // Default to backend status or pending
+      return bill.status?.toLowerCase() || 'pending';
+    } else if (type === 'cash') {
+      return 'paid';
+    }
+    return bill.status?.toLowerCase() || '';
   };
 
   return (
@@ -128,6 +142,8 @@ const BillHistory: React.FC = () => {
               <TableBody>
                 {bills.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((bill, index) => {
                   const bottleMap = Object.fromEntries(bill.bottles.map(b => [b.type, b.quantity]));
+                  const computedStatus = getStatus(bill);
+                  const type = bill.paymentType?.toLowerCase();
                   return (
                     <TableRow key={index}>
                       <TableCell align="center">{bill.invoiceNo}</TableCell>
@@ -139,15 +155,31 @@ const BillHistory: React.FC = () => {
                       <TableCell align="center">Rs. {bill.total.toFixed(2)}</TableCell>
                       <TableCell align="center">{bill.paymentType}</TableCell>
                       <TableCell align="center">
-                        <Select
-                          value={bill.status}
-                          onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
-                          size="small"
-                        >
-                          <MenuItem value="Paid">Paid</MenuItem>
-                          <MenuItem value="Unpaid">Unpaid</MenuItem>
-                          <MenuItem value="Partially Paid">Partially Paid</MenuItem>
-                        </Select>
+                        {type === 'credit' ? (
+                          <Select
+                            value={computedStatus}
+                            onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
+                            size="small"
+                          >
+                            <MenuItem value="paid">Paid</MenuItem>
+                            <MenuItem value="unpaid">Unpaid</MenuItem>
+                            <MenuItem value="partially paid">Partially Paid</MenuItem>
+                          </Select>
+                        ) : type === 'cheque' ? (
+                          <Select
+                            value={computedStatus}
+                            onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
+                            size="small"
+                          >
+                            <MenuItem value="pending">Pending</MenuItem>
+                            <MenuItem value="cleared">Cleared</MenuItem>
+                            <MenuItem value="bounced">Bounced</MenuItem>
+                          </Select>
+                        ) : type === 'cash' ? (
+                          'Paid'
+                        ) : (
+                          computedStatus.charAt(0).toUpperCase() + computedStatus.slice(1)
+                        )}
                       </TableCell>
                       <TableCell align="center">
                         <IconButton onClick={() => openReturnDialog(index + page * rowsPerPage)}>
