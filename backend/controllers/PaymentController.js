@@ -70,43 +70,68 @@ const issueBill = async (req, res) => {
       return res.status(400).json({ error: 'At least one bottle entry is required.' });
     }
 
-    // For each bottle, find the Inventory document that contains it, then check stock and update
+    // For each bottle type in the request, we need to check total available quantity across all inventory entries
     for (const bottle of bottles) {
-      // Find inventory document containing this bottle type
-      const inventoryDoc = await Inventory.findOne({ 'bottles.itemCode': bottle.type });
-      if (!inventoryDoc) {
+      // Find all inventory documents containing this bottle type
+      const inventoryDocs = await Inventory.find({ 'bottles.itemCode': bottle.type });
+      if (!inventoryDocs || inventoryDocs.length === 0) {
         return res.status(400).json({ error: `No inventory found for bottle type: ${bottle.type}` });
       }
 
-      // Find bottle inside the bottles array
-      const invBottle = inventoryDoc.bottles.find(b => b.itemCode === bottle.type);
-      if (!invBottle) {
-        return res.status(400).json({ error: `No inventory entry for bottle type: ${bottle.type}` });
+      // Calculate total available quantity across all inventory entries
+      let totalAvailable = 0;
+      const bottleInventories = [];
+      
+      // Gather all inventory entries for this bottle type
+      for (const doc of inventoryDocs) {
+        const invBottles = doc.bottles.filter(b => b.itemCode === bottle.type);
+        for (const invBottle of invBottles) {
+          totalAvailable += invBottle.availablequantity;
+          bottleInventories.push({
+            inventoryId: doc._id,
+            bottle: invBottle,
+            available: invBottle.availablequantity
+          });
+        }
       }
 
-      // Check stock availability
-      if (invBottle.availablequantity < bottle.quantity) {
+      // Check if total stock is sufficient
+      if (totalAvailable < bottle.quantity) {
         return res.status(400).json({
-          error: `Insufficient stock for bottle type: ${bottle.type}. Available: ${invBottle.availablequantity}, Requested: ${bottle.quantity}`
+          error: `Insufficient stock for bottle type: ${bottle.type}. Available: ${totalAvailable}, Requested: ${bottle.quantity}`
         });
       }
 
-      // Atomically update the bottle quantities using arrayFilters and inventory document _id
-      const updateResult = await Inventory.updateOne(
-        { _id: inventoryDoc._id },
-        {
-          $inc: {
-            'bottles.$[elem].availablequantity': -bottle.quantity,
-            'bottles.$[elem].soldquantity': bottle.quantity
+      // Update inventory - we need to distribute the requested quantity across available inventory entries
+      let remainingToDeduct = bottle.quantity;
+      
+      // Sort bottle inventories by any criteria you prefer (FIFO, LIFO, etc.)
+      // Here we'll use FIFO approach (oldest inventory first)
+      bottleInventories.sort((a, b) => a.bottle.createdAt - b.bottle.createdAt);
+      
+      for (const inv of bottleInventories) {
+        if (remainingToDeduct <= 0) break;
+        
+        const deductAmount = Math.min(inv.available, remainingToDeduct);
+        remainingToDeduct -= deductAmount;
+        
+        // Update this inventory entry
+        const updateResult = await Inventory.updateOne(
+          { _id: inv.inventoryId },
+          {
+            $inc: {
+              'bottles.$[elem].availablequantity': -deductAmount,
+              'bottles.$[elem].soldquantity': deductAmount
+            }
+          },
+          {
+            arrayFilters: [{ 'elem.itemCode': bottle.type, 'elem.availablequantity': { $gte: deductAmount } }]
           }
-        },
-        {
-          arrayFilters: [{ 'elem.itemCode': bottle.type, 'elem.availablequantity': { $gte: bottle.quantity } }]
+        );
+        
+        if (updateResult.modifiedCount === 0) {
+          return res.status(400).json({ error: `Failed to update inventory for bottle type: ${bottle.type}` });
         }
-      );
-
-      if (updateResult.modifiedCount === 0) {
-        return res.status(400).json({ error: `Failed to update inventory for bottle type: ${bottle.type}` });
       }
     }
 
