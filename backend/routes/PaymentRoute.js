@@ -9,4 +9,7 @@ router.post('/issue', paymentController.issueBill);
 // Get payment history (for a customer or all)
 router.get('/history', paymentController.getPaymentHistory);
 
+// Update payment (status change, returns, etc.)
+router.put('/update/:paymentId', paymentController.updatePayment);
+
 module.exports = router;

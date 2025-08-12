@@ -10,6 +10,8 @@ import {
   Paper,
   Select,
   MenuItem,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
 import axios from 'axios';
@@ -26,31 +28,70 @@ interface ChequePayment {
 
 const ChequePayments = () => {
   const [cheques, setCheques] = useState<ChequePayment[]>([]);
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  const fetchCheques = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/payments/history');
+      const mapped = res.data
+        .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
+        .map((item: any, idx: number) => ({
+          id: item._id || `${idx + 1}`,
+          invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+          customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          chequeNo: item.chequeNo || '',
+          dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
+          amount: item.amount || 0,
+          status: (item.status || '').toLowerCase() as ChequePayment['status'],
+        }));
+      setCheques(mapped);
+    } catch (error) {
+      console.error('Error fetching cheque payments:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load cheque payments',
+        severity: 'error'
+      });
+    }
+  };
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/payments/history')
-      .then(res => {
-        const mapped = res.data
-          .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
-          .map((item: any, idx: number) => ({
-            id: item._id || `${idx + 1}`,
-            invoiceNo: item.invoiceNo || `INV${idx + 1}`,
-            customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
-            chequeNo: item.chequeNo || '',
-            dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
-            amount: item.amount || 0,
-            status: (item.status || '').toLowerCase() as ChequePayment['status'],
-          }));
-        setCheques(mapped);
-      })
-      .catch(() => setCheques([]));
+    fetchCheques();
   }, []);
 
-  const handleStatusChange = (id: string, newStatus: ChequePayment['status']) => {
-    const updated = cheques.map((cheque) =>
-      cheque.id === id ? { ...cheque, status: newStatus } : cheque
-    );
-    setCheques(updated);
+  const handleStatusChange = async (id: string, newStatus: ChequePayment['status']) => {
+    try {
+      // Update status in the database
+      await axios.put(`http://localhost:5000/api/payments/update/${id}`, {
+        status: newStatus
+      });
+      
+      // Make sure we create a new array with the updated status
+      const updated = cheques.map((cheque) =>
+        cheque.id === id ? { ...cheque, status: newStatus } : cheque
+      );
+      setCheques(updated);
+      
+      setSnackbar({
+        open: true,
+        message: 'Cheque status updated successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating cheque status:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update cheque status',
+        severity: 'error'
+      });
+      
+      // Refresh the data from the server to ensure UI is in sync with DB
+      fetchCheques();
+    }
   };
 
   return (
@@ -107,6 +148,18 @@ const ChequePayments = () => {
         </Table>
       </TableContainer>
       </Paper>
+
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({...snackbar, open: false})}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
     </AdminLayout>
   );

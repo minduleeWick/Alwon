@@ -4,7 +4,7 @@ import AdminLayout from '../layouts/AdminLayout';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow,
   Paper, IconButton, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField
+  Button, TextField, Snackbar, Alert
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
@@ -14,9 +14,11 @@ const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 interface Bottle {
   type: string;
   quantity: number;
+  price: number;
 }
 
 interface Bill {
+  _id: string;
   invoiceNo: string;
   date: string;
   customerName: string;
@@ -35,32 +37,74 @@ const BillHistory: React.FC = () => {
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedBillIndex, setSelectedBillIndex] = useState<number | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<{ [key: string]: number }>({});
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  const fetchBills = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/payments/history');
+      // Map backend data to Bill[]
+      const mapped = response.data.map((item: any) => ({
+        _id: item._id,
+        invoiceNo: item.invoiceNo || '',
+        date: item.paymentDate ? item.paymentDate.split('T')[0] : '',
+        customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+        bottles: item.bottles || [],
+        total: item.amount || 0,
+        paymentType: item.paymentMethod || '',
+        status: item.status || '',
+        paidAmount: item.payment ?? 0,
+        remainingAmount: item.deupayment ?? 0,
+      }));
+      setBills(mapped);
+    } catch (error) {
+      console.error('Error fetching bills:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load bill history',
+        severity: 'error'
+      });
+    }
+  };
 
   useEffect(() => {
-    // Fetch bills from backend
-    axios.get('http://localhost:5000/api/payments/history')
-      .then(res => {
-        // Map backend data to Bill[]
-        const mapped = res.data.map((item: any, idx: number) => ({
-          invoiceNo: item.invoiceNo || `INV${idx + 1}`,
-          date: item.paymentDate ? item.paymentDate.split('T')[0] : '',
-          customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
-          bottles: item.bottles || [],
-          total: item.amount || 0,
-          paymentType: item.paymentMethod || '',
-          status: item.status || '',
-          paidAmount: item.payment ?? 0,
-          remainingAmount: item.deupayment ?? 0,
-        }));
-        setBills(mapped);
-      })
-      .catch(() => setBills([]));
+    fetchBills();
   }, []);
 
-  const handleStatusChange = (index: number, newStatus: string) => {
-    const updated = [...bills];
-    updated[index].status = newStatus;
-    setBills(updated);
+  const handleStatusChange = async (index: number, newStatus: string) => {
+    const bill = bills[index];
+    if (!bill._id) return;
+    
+    try {
+      // Update status in the database
+      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
+        status: newStatus
+      });
+      
+      // Create a new array to ensure React detects the state change
+      const updated = [...bills];
+      updated[index] = {
+        ...updated[index],
+        status: newStatus
+      };
+      setBills(updated);
+      
+      setSnackbar({
+        open: true,
+        message: 'Status updated successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update status',
+        severity: 'error'
+      });
+    }
   };
 
   const openReturnDialog = (index: number) => {
@@ -70,21 +114,45 @@ const BillHistory: React.FC = () => {
     setReturnDialogOpen(true);
   };
 
-  const handleReturnSubmit = () => {
+  const handleReturnSubmit = async () => {
     if (selectedBillIndex === null) return;
+    
+    const bill = bills[selectedBillIndex];
+    if (!bill._id) return;
 
-    const updated = [...bills];
-    const bill = updated[selectedBillIndex];
-
-    bill.bottles = bill.bottles.map(bottle => {
-      const returnedQty = returnQuantities[bottle.type] || 0;
-      const newQty = Math.max(bottle.quantity - returnedQty, 0);
-      return { ...bottle, quantity: newQty };
-    });
-
-    bill.total = bill.bottles.reduce((sum, b) => sum + b.quantity * 100, 0); // assuming flat price for example
-
-    setBills(updated);
+    // Create an array of returned bottles with valid quantities
+    const returnedBottles = Object.entries(returnQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([type, quantity]) => ({ type, quantity }));
+    
+    if (returnedBottles.length === 0) {
+      setReturnDialogOpen(false);
+      return;
+    }
+    
+    try {
+      // Send return data to the server
+      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
+        returnedBottles
+      });
+      
+      // Refresh bills to get updated data
+      await fetchBills();
+      
+      setSnackbar({
+        open: true,
+        message: 'Returns processed successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error processing returns:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to process returns',
+        severity: 'error'
+      });
+    }
+    
     setReturnDialogOpen(false);
   };
 
@@ -157,7 +225,7 @@ const BillHistory: React.FC = () => {
                       <TableCell align="center">
                         {type === 'credit' ? (
                           <Select
-                            value={computedStatus}
+                            value={bill.status || computedStatus}
                             onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
                             size="small"
                           >
@@ -167,7 +235,7 @@ const BillHistory: React.FC = () => {
                           </Select>
                         ) : type === 'cheque' ? (
                           <Select
-                            value={computedStatus}
+                            value={bill.status || computedStatus}
                             onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
                             size="small"
                           >
@@ -211,16 +279,24 @@ const BillHistory: React.FC = () => {
         <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Enter Returns</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {bottleTypes.map(type => (
+            {selectedBillIndex !== null && bills[selectedBillIndex]?.bottles.map(bottle => (
               <TextField
-                key={type}
-                label={`Return Qty (${type})`}
+                key={bottle.type}
+                label={`Return Qty (${bottle.type})`}
                 type="number"
-                value={returnQuantities[type] || ''}
+                value={returnQuantities[bottle.type] || ''}
                 onChange={(e) => setReturnQuantities({
                   ...returnQuantities,
-                  [type]: Math.max(Number(e.target.value), 0)
+                  [bottle.type]: Math.min(
+                    Math.max(Number(e.target.value), 0), 
+                    bottle.quantity
+                  )
                 })}
+                inputProps={{ 
+                  min: 0, 
+                  max: bottle.quantity 
+                }}
+                helperText={`Available: ${bottle.quantity}`}
               />
             ))}
           </DialogContent>
@@ -229,6 +305,18 @@ const BillHistory: React.FC = () => {
             <Button onClick={() => setReturnDialogOpen(false)} color="secondary">Cancel</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar 
+          open={snackbar.open} 
+          autoHideDuration={6000} 
+          onClose={() => setSnackbar({...snackbar, open: false})}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar({...snackbar, open: false})}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </div>
     </AdminLayout>
   );
