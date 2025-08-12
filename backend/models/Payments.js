@@ -24,10 +24,9 @@ const paymentSchema = new mongoose.Schema({
         min: 1 // Quantity must be at least 1
     },
     itemCode: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Inventory',
+        type: String, // was mongoose.Schema.Types.ObjectId, changed to String to match bottle itemCode
         required: true
-    },
+        },
     itemName: {
         type: String,
         required: true,
@@ -55,8 +54,24 @@ const paymentSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['Cash', 'Card', 'Online'],
+        enum: ['Cash', 'Card', 'Online' , 'Cheque' , 'Credit'],
         required: true
+    },
+    chequeNo: {
+        type: String,
+        required: function() {
+            return this.paymentMethod === 'Cheque';
+        }
+    },
+    chequeDate: {
+        type: Date,
+        required: function() {
+            return this.paymentMethod === 'Cheque';
+        }
+    },
+    remainingAmount: {
+        type: Number,
+        default: 0
     },
     paymentDate: {
         type: Date,
@@ -66,7 +81,14 @@ const paymentSchema = new mongoose.Schema({
         type: String,
         enum: ['Pending', 'Completed', 'Failed'],
         default: 'Pending'
-    }
+    },
+    bottles: [
+        {
+            type: { type: String, required: true }, // This should match Inventory.bottles.itemCode
+            quantity: { type: Number, required: true, min: 1 },
+            price: { type: Number, required: true, min: 0 }
+        }
+    ]
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

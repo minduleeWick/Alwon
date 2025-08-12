@@ -3,6 +3,7 @@ import AdminLayout from '../layouts/AdminLayout';
 import '../styles/theme.css';
 import { Tabs, Tab, Box } from '@mui/material';
 import InvoicePreview from '../components/BillPrint';
+import axios from 'axios';
 
 const customers = [
   { id: 1, name: 'John Doe', phone: '0711234567' },
@@ -88,23 +89,65 @@ const handleAddBottle = () => {
   const calculateTotal = () =>
     bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Make sure bottles array is not empty and all required fields are present
+    if (bottles.length === 0 || bottles.some(b => !b.type || b.quantity < 1 || b.price <= 0)) {
+      alert('Please add at least one bottle with valid type, quantity, and price');
+      return;
+    }
+    
+    const total = calculateTotal();
+    
     const billData = {
-      customerName,
-      customerPhone,
-      paymentMethod,
-      bottles,
-      amount: calculateTotal(),          // Total amount of the bill
-      paidAmount: paymentMethod === 'credit' ? paidAmount : calculateTotal(),
-      creditAmount: paymentMethod === 'credit' ? creditAmount : 0,
-      remainingAmount: paymentMethod !== 'cash' ? remainingAmount : 0,
-      chequeNo: paymentMethod === 'cheque' ? chequeNo : '',
-      chequeDate: paymentMethod === 'cheque' ? chequeDate : '',
+      // Customer information
+      customerId: tabIndex === 0 ? selectedCustomer : undefined,
+      customerType: tabIndex === 0 ? 'registered' : 'guest',
+      guestInfo: tabIndex === 1 ? { name: guestName, phone: guestPhone } : undefined,
+      
+      // Item details
+      quantity: bottles.reduce((sum, b) => sum + b.quantity, 0),
+      itemCode: bottles[0].type, // Using the first bottle type as itemCode
+      itemName: bottles.map(b => b.type).join(', '),
+      
+      // Payment details
+      amount: total,
+      payment: paymentMethod === 'credit' ? paidAmount : total,
+      deupayment: paymentMethod === 'credit' ? creditAmount : 0,
+      creaditlimit: 0,
+      
+      // Payment method details
+      paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1), // Capitalize first letter
+      status: 'Pending',
+      
+      // Cheque details when applicable
+      ...(paymentMethod === 'cheque' && {
+        chequeNo,
+        chequeDate,
+        remainingAmount
+      }),
+      
+      // Bottle details in the format expected by the backend
+      bottles: bottles.map(b => ({
+        type: b.type,
+        quantity: b.quantity,
+        price: b.price
+      }))
     };
 
-    console.log('Bill Data to Save:', billData);
-    setSuccess(true);
+    try {
+      const response = await axios.post('https://alwon.onrender.com/api/payments/issue', billData);
+      console.log('Bill saved successfully:', response.data);
+      setSuccess(true);
+    } catch (error: any) {
+      if (error.response && error.response.data && error.response.data.error) {
+        alert('Failed to save bill: ' + error.response.data.error);
+      } else {
+        alert('Error saving bill: ' + error.message);
+      }
+      console.error('Error details:', error);
+    }
   };
 
   const handlePrint = () => window.print();
@@ -227,6 +270,7 @@ const handleAddBottle = () => {
                     min={0}
                     value={remainingAmount}
                     onChange={(e) => setRemainingAmount(Number(e.target.value))}
+                    required
                   />
                 </label>
               </div>
@@ -238,6 +282,7 @@ const handleAddBottle = () => {
                     type="text"
                     value={chequeNo}
                     onChange={(e) => setChequeNo(e.target.value)}
+                    required
                   />
                 </label>
               </div>
@@ -248,7 +293,7 @@ const handleAddBottle = () => {
                   <input
                     type="text"
                     value={calculateTotal().toFixed(2)}
-                    onChange={(e) => setChequeNo(e.target.value)} // ← this line might be a mistake
+                    readOnly
                   />
                 </label>
               </div>
@@ -257,9 +302,10 @@ const handleAddBottle = () => {
                 <label>
                   Date:
                   <input
-                    type="text"
+                    type="date"
                     value={chequeDate}
                     onChange={(e) => setChequeDate(e.target.value)}
+                    required
                   />
                 </label>
               </div>
@@ -267,25 +313,25 @@ const handleAddBottle = () => {
           )}
         {['credit'].includes(paymentMethod) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-              <div className="remaining-amount">
+              <div className="amount">
                 <label>
-                  Remaining Amount:
+                  Total Amount:
                   <input
-                    type="number"
-                    min={0}
-                    value={remainingAmount}
-                    onChange={(e) => setRemainingAmount(Number(e.target.value))}
+                    type="text"
+                    value={calculateTotal().toFixed(2)}
+                    readOnly
                   />
                 </label>
               </div>
-
               <div className="amount">
                 <label>
                   Paid Amount:
                   <input
-                    type="text"
+                    type="number"
+                    min={0}
                     value={paidAmount}
                     onChange={(e) => setPaidAmount(Number(e.target.value))}
+                    required
                   />
                 </label>
               </div>
@@ -294,13 +340,11 @@ const handleAddBottle = () => {
                   Credit Amount:
                   <input
                     type="text"
-                    value={creditAmount}
+                    value={creditAmount.toFixed(2)}
                     readOnly
                   />
                 </label>
               </div>
-
-
             </div>
           )}
           </div>
@@ -347,3 +391,4 @@ const handleAddBottle = () => {
 };
 
 export default Billing;
+

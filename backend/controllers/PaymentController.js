@@ -3,7 +3,7 @@ const Payment = require('../models/Payments');
 const Customer = require('../models/Customer');
 const Inventory = require('../models/Inventory');
 
-// ✅ Issue a payment (bill)
+
 const issueBill = async (req, res) => {
   try {
     const {
@@ -18,7 +18,11 @@ const issueBill = async (req, res) => {
       deupayment,
       creaditlimit,
       paymentMethod,
-      status
+      status,
+      bottles,
+      chequeNo,
+      chequeDate,
+      remainingAmount
     } = req.body;
 
     // Validate required fields
@@ -49,13 +53,52 @@ const issueBill = async (req, res) => {
       }
     }
 
-    // Validate item exists in inventory
-    const inventoryItem = await Inventory.findById(itemCode);
-    if (!inventoryItem) {
-      return res.status(404).json({ error: 'Inventory item not found.' });
+    // Validate bottles array
+    if (!Array.isArray(bottles) || bottles.length === 0) {
+      return res.status(400).json({ error: 'At least one bottle entry is required.' });
     }
 
-    // Create payment
+    // For each bottle, find the Inventory document that contains it, then check stock and update
+    for (const bottle of bottles) {
+      // Find inventory document containing this bottle type
+      const inventoryDoc = await Inventory.findOne({ 'bottles.itemCode': bottle.type });
+      if (!inventoryDoc) {
+        return res.status(400).json({ error: `No inventory found for bottle type: ${bottle.type}` });
+      }
+
+      // Find bottle inside the bottles array
+      const invBottle = inventoryDoc.bottles.find(b => b.itemCode === bottle.type);
+      if (!invBottle) {
+        return res.status(400).json({ error: `No inventory entry for bottle type: ${bottle.type}` });
+      }
+
+      // Check stock availability
+      if (invBottle.availablequantity < bottle.quantity) {
+        return res.status(400).json({
+          error: `Insufficient stock for bottle type: ${bottle.type}. Available: ${invBottle.availablequantity}, Requested: ${bottle.quantity}`
+        });
+      }
+
+      // Atomically update the bottle quantities using arrayFilters and inventory document _id
+      const updateResult = await Inventory.updateOne(
+        { _id: inventoryDoc._id },
+        {
+          $inc: {
+            'bottles.$[elem].availablequantity': -bottle.quantity,
+            'bottles.$[elem].soldquantity': bottle.quantity
+          }
+        },
+        {
+          arrayFilters: [{ 'elem.itemCode': bottle.type, 'elem.availablequantity': { $gte: bottle.quantity } }]
+        }
+      );
+
+      if (updateResult.modifiedCount === 0) {
+        return res.status(400).json({ error: `Failed to update inventory for bottle type: ${bottle.type}` });
+      }
+    }
+
+    // After inventory update for all bottles, save payment
     const paymentDoc = new Payment({
       customerId: customerId || undefined,
       customerType,
@@ -69,10 +112,18 @@ const issueBill = async (req, res) => {
       creaditlimit,
       paymentMethod,
       status: status || 'Pending',
-      paymentDate: new Date()
+      paymentDate: new Date(),
+      bottles,
+      // Add cheque details when applicable
+      ...(paymentMethod === 'Cheque' && {
+        chequeNo,
+        chequeDate,
+        remainingAmount
+      })
     });
 
     await paymentDoc.save();
+
     res.status(201).json({ message: 'Payment recorded successfully.', payment: paymentDoc });
 
   } catch (err) {
@@ -80,6 +131,7 @@ const issueBill = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 // ✅ Get payment history (all or by customer)
 const getPaymentHistory = async (req, res) => {
