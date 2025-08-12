@@ -41,8 +41,8 @@ const issueBill = async (req, res) => {
       return res.status(400).json({ error: 'Invalid customerType. Must be registered or guest.' });
     }
 
-    let customerName = '';
-    let customerPhone = '';
+    let customerName;
+    let customerPhone;
 
     // For registered customers, check if customerId exists
     if (customerType === 'registered') {
@@ -62,8 +62,7 @@ const issueBill = async (req, res) => {
       if (!guestInfo || !guestInfo.name) {
         return res.status(400).json({ error: 'Guest info (at least name) is required for guest payments.' });
       }
-      customerName = guestInfo.name;
-      customerPhone = guestInfo.phone || '';
+      // We don't need to set customerName and customerPhone here as they're already in guestInfo
     }
 
     // Validate bottles array
@@ -147,7 +146,9 @@ const issueBill = async (req, res) => {
       paymentDate: new Date(),
       bottles,
       invoiceNo: generateUniqueInvoiceId(),
-      customerType , // Only save customerName for registered
+      // Only set customerName and customerPhone for registered customers
+      customerName: customerType === 'registered' ? customerName : undefined,
+      customerPhone: customerType === 'registered' ? customerPhone : undefined,
       ...(paymentMethod === 'Cheque' && {
         chequeNo,
         chequeDate,
