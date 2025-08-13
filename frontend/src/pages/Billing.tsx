@@ -36,7 +36,7 @@ const Billing: React.FC = () => {
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get('http://localhost:5000/api/customers')
+      axios.get(' https://alwon.onrender.com/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
@@ -170,7 +170,7 @@ const Billing: React.FC = () => {
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/api/payments/issue', billData);
+      const response = await axios.post(' https://alwon.onrender.com/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
       setSuccess(true);
     } catch (error: any) {
