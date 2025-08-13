@@ -9,46 +9,31 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from 'axios';
-
-const apiBase = 'https://alwon.onrender.com/api/customers';
-
-const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
 interface Customer {
-  name: any;
-  _id?: string;
-  customername?: string;
+  name: string;
   phone: string;
   balance: number;
   createdAt: string;
-  priceRates?: { bottleType: string; price: number }[];
-  bottlePrices: { [key: string]: number };
-  idnumber?: string;
-  address?: string;
-  email?: string;
-  type?: string;
 }
 
-// Helper to convert backend priceRates to frontend bottlePrices
-const priceRatesToBottlePrices = (priceRates: { bottleType: string; price: number }[]) => {
-  const bottlePrices: { [key: string]: number } = {};
-  bottleTypes.forEach(type => {
-    const found = priceRates.find(rate => rate.bottleType === type);
-    bottlePrices[type] = found ? found.price : 0;
-  });
-  return bottlePrices;
-};
-
-// Helper to convert frontend bottlePrices to backend priceRates
-const bottlePricesToPriceRates = (bottlePrices: { [key: string]: number }) =>
-  bottleTypes.map(type => ({
-    bottleType: type,
-    price: bottlePrices[type] || 0,
-  }));
+const sampleCustomers: Customer[] = [
+  {
+    name: 'John Doe',
+    phone: '0771234567',
+    balance: 1500,
+    createdAt: '2025-07-01',
+  },
+  {
+    name: 'Jane Smith',
+    phone: '0719876543',
+    balance: 0,
+    createdAt: '2025-07-05',
+  },
+];
 
 const Customers: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>(sampleCustomers);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -58,7 +43,6 @@ const Customers: React.FC = () => {
     phone: '',
     balance: 0,
     createdAt: new Date().toISOString().split('T')[0],
-    bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
   });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -74,105 +58,36 @@ const Customers: React.FC = () => {
     setDeleteOpen(true);
   };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
     if (currentEditIndex !== null) {
-      const customer = customers[currentEditIndex];
-      try {
-        await axios.delete(`${apiBase}/${customer._id}`);
-        const updated = [...customers];
-        updated.splice(currentEditIndex, 1);
-        setCustomers(updated);
-        setCurrentEditIndex(null);
-        handleDeleteClose();
-      } catch (err) {
-        // handle error
-      }
+      const updated = [...customers];
+      updated.splice(currentEditIndex, 1);
+      setCustomers(updated);
+      setCurrentEditIndex(null);
     }
+    handleDeleteClose();
   };
-  // Fetch customers from backend
-  React.useEffect(() => {
-    axios.get(apiBase)
-      .then(res => {
-        setCustomers(
-          res.data.map((c: any) => ({
-            ...c,
-            name: c.customername,
-            bottlePrices: priceRatesToBottlePrices(c.priceRates || []),
-            balance: c.balance || 0,
-            createdAt: c.createdAt ? c.createdAt.split('T')[0] : '',
-          }))
-        );
-      })
-      .catch(err => {
-        // handle error
-      });
-  }, []);
-
-  // Add customer
-  const handleAddCustomer = async () => {
-    const payload = {
-      customername: formData.name,
-      phone: formData.phone,
-      balance: formData.balance,
-      createdAt: formData.createdAt,
-      priceRates: bottlePricesToPriceRates(formData.bottlePrices),
-      idnumber: 'AUTO', // or get from form if needed
-      address: 'N/A',   // or get from form if needed
-      email: `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`, // or get from form
-      type: 'regular',  // or get from form
-    };
-    try {
-      const res = await axios.post(`${apiBase}/add`, payload);
-      setCustomers([
-        ...customers,
-        {
-          ...res.data,
-          name: res.data.customername,
-          bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
-          balance: res.data.balance || 0,
-          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
-        },
-      ]);
-      handleClose();
-      resetForm();
-    } catch (err) {
-      // handle error
-    }
+  const handleAddCustomer = () => {
+    setCustomers([...customers, formData]);
+    handleClose();
+    resetForm();
   };
 
-  // Edit customer
-  const handleUpdateCustomer = async () => {
+  const handleEdit = (index: number) => {
+    setCurrentEditIndex(index);
+    setFormData(customers[index]);
+    setEditOpen(true);
+  };
+
+  const handleUpdateCustomer = () => {
     if (currentEditIndex !== null) {
-      const customer = customers[currentEditIndex];
-      const payload = {
-        customername: formData.name,
-        phone: formData.phone,
-        balance: formData.balance,
-        createdAt: formData.createdAt,
-        priceRates: bottlePricesToPriceRates(formData.bottlePrices),
-        idnumber: customer.idnumber || 'AUTO',
-        address: customer.address || 'N/A',
-        email: customer.email || `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`,
-        type: customer.type || 'regular',
-      };
-      try {
-        const res = await axios.put(`${apiBase}/${customer._id}`, payload);
-        const updated = [...customers];
-        updated[currentEditIndex] = {
-          ...res.data,
-          name: res.data.customername,
-          bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
-          balance: res.data.balance || 0,
-          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
-        };
-        setCustomers(updated);
-        setCurrentEditIndex(null);
-        handleEditClose();
-        resetForm();
-      } catch (err) {
-        // handle error
-      }
+      const updated = [...customers];
+      updated[currentEditIndex] = formData;
+      setCustomers(updated);
+      setCurrentEditIndex(null);
     }
+    handleEditClose();
+    resetForm();
   };
 
 
@@ -182,13 +97,8 @@ const Customers: React.FC = () => {
       phone: '',
       balance: 0,
       createdAt: new Date().toISOString().split('T')[0],
-      bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
-
-  function handleEdit(index: number): void {
-    throw new Error('Function not implemented.');
-  }
 
   return (
     <AdminLayout>
@@ -205,22 +115,11 @@ const Customers: React.FC = () => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell align="center"><strong>Customer Name</strong></TableCell>
-                  <TableCell align="center"><strong>Phone</strong></TableCell>
-                  <TableCell align="center"><strong>Remaining Balance (Rs)</strong></TableCell>
-                  <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Prices (Rs)</strong></TableCell>
-                  <TableCell align="center"><strong>Created At</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell />
-                  <TableCell />
-                  <TableCell />
-                  {bottleTypes.map(type => (
-                    <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
-                  ))}
-                  <TableCell />
-                  <TableCell />
+                  <TableCell><strong>Customer Name</strong></TableCell>
+                  <TableCell><strong>Phone</strong></TableCell>
+                  <TableCell><strong>Remaining Balance (Rs)</strong></TableCell>
+                  <TableCell><strong>Created At</strong></TableCell>
+                  <TableCell><strong>Actions</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -228,14 +127,11 @@ const Customers: React.FC = () => {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((customer, index) => (
                     <TableRow key={index}>
-                      <TableCell align="center">{customer.name}</TableCell>
-                      <TableCell align="center">{customer.phone}</TableCell>
-                      <TableCell align="center">Rs. {customer.balance.toFixed(2)}</TableCell>
-                      {bottleTypes.map(type => (
-                        <TableCell key={type} align="center">Rs. {customer.bottlePrices[type] || 0}</TableCell>
-                      ))}
-                      <TableCell align="center">{customer.createdAt}</TableCell>
-                      <TableCell align="center">
+                      <TableCell>{customer.name}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>Rs. {customer.balance.toFixed(2)}</TableCell>
+                      <TableCell>{customer.createdAt}</TableCell>
+                      <TableCell>
                         <IconButton onClick={() => handleEdit(index)} color="primary">
                           <EditIcon />
                         </IconButton>
@@ -264,55 +160,12 @@ const Customers: React.FC = () => {
         </Paper>
 
         {/* Add Dialog */}
-        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={handleClose}>
           <DialogTitle>Add Customer</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '24px', paddingTop: '20px' }}>
-            <TextField 
-              label="Name" 
-              value={formData.name} 
-              onChange={e => setFormData({ ...formData, name: e.target.value })} 
-              fullWidth
-              sx={{ marginTop: '8px' }}
-            />
-            <TextField 
-              label="Phone" 
-              value={formData.phone} 
-              onChange={e => setFormData({ ...formData, phone: e.target.value })} 
-              fullWidth
-            />
-            <TextField 
-              label="Balance" 
-              type="number" 
-              value={formData.balance} 
-              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
-              fullWidth
-            />
-            
-            {/* Bottle Prices Section */}
-            <div style={{ marginTop: '20px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-             
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                {bottleTypes.map(type => (
-                  <TextField
-                    key={type}
-                    label={`${type} Price`}
-                    type="number"
-                    value={formData.bottlePrices[type] || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      bottlePrices: {
-                        ...formData.bottlePrices,
-                        [type]: +e.target.value || 0
-                      }
-                    })}
-                    size="small"
-                    InputProps={{
-                      startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: 300 }}>
+            <TextField label="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+            <TextField label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+            <TextField label="Balance" type="number" value={formData.balance} onChange={e => setFormData({ ...formData, balance: +e.target.value })} />
           </DialogContent>
           <DialogActions>
             <Button onClick={handleAddCustomer} variant="contained">Save</Button>
@@ -321,55 +174,12 @@ const Customers: React.FC = () => {
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={editOpen} onClose={handleEditClose} maxWidth="md" fullWidth>
+        <Dialog open={editOpen} onClose={handleEditClose}>
           <DialogTitle>Edit Customer</DialogTitle>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '24px', paddingTop: '20px' }}>
-            <TextField 
-              label="Name" 
-              value={formData.name} 
-              onChange={e => setFormData({ ...formData, name: e.target.value })} 
-              fullWidth
-              sx={{ marginTop: '8px' }}
-            />
-            <TextField 
-              label="Phone" 
-              value={formData.phone} 
-              onChange={e => setFormData({ ...formData, phone: e.target.value })} 
-              fullWidth
-            />
-            <TextField 
-              label="Balance" 
-              type="number" 
-              value={formData.balance} 
-              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
-              fullWidth
-            />
-            
-            {/* Bottle Prices Section */}
-            <div style={{ marginTop: '20px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#fafafa' }}>
-              <h4 style={{ margin: '0 0 16px 0', color: '#333', fontSize: '16px' }}>Bottle Prices (Rs):</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                {bottleTypes.map(type => (
-                  <TextField
-                    key={type}
-                    label={`${type} Price`}
-                    type="number"
-                    value={formData.bottlePrices[type] || ''}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      bottlePrices: {
-                        ...formData.bottlePrices,
-                        [type]: +e.target.value || 0
-                      }
-                    })}
-                    size="small"
-                    InputProps={{
-                      startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: 300 }}>
+            <TextField label="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+            <TextField label="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+            <TextField label="Balance" type="number" value={formData.balance} onChange={e => setFormData({ ...formData, balance: +e.target.value })} />
           </DialogContent>
           <DialogActions>
             <Button onClick={handleUpdateCustomer} variant="contained">Update</Button>

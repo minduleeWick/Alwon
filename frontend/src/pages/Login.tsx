@@ -25,7 +25,7 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post('https://alwon.onrender.com/api/users/login', {
+      const res = await axios.post('http://localhost:5000/api/users/login', {
         username,
         password,
       });
@@ -53,7 +53,7 @@ const Login: React.FC = () => {
 
   const handleResetSubmit = async () => {
     try {
-      const res = await axios.post('https://alwon.onrender.com/api/users/forgot-password', {
+      const res = await axios.post('http://localhost:5000/api/users/forgot-password', {
         username: resetUsername,
       });
 

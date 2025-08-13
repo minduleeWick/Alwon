@@ -42,12 +42,6 @@ interface Bottle {
 type BottleKey = 'type' | 'quantity' | 'price';
 
 const bottleSizes = ['500ml', '1L', '1.5L', '5L', '20L'];
-interface Customer {
-  _id: string;
-  customername: string;
-  phone: string;
-  priceRates?: { bottleType: string; price: number }[];
-}
 
 const Billing: React.FC = () => {
   const [tabIndex, setTabIndex] = useState(0);
@@ -163,23 +157,6 @@ const Billing: React.FC = () => {
       setCreditAmount(0);
     }
   }, [paymentMethod, paidAmount, bottles]);
-
-  // When selectedCustomer or bottles change, auto-fill bottle prices for registered customers
-  useEffect(() => {
-    if (tabIndex === 0 && selectedCustomer) {
-      const customer = customers.find(c => c._id === selectedCustomer);
-      if (customer && customer.priceRates) {
-        setBottles(prevBottles =>
-          prevBottles.map(bottle => {
-            if (!bottle.type) return bottle;
-            const rate = customer.priceRates!.find(r => r.bottleType === bottle.type);
-            return rate ? { ...bottle, price: rate.price } : bottle;
-          })
-        );
-      }
-    }
-    // eslint-disable-next-line
-  }, [selectedCustomer, bottles.map(b => b.type).join(','), tabIndex]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
