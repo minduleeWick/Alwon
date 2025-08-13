@@ -9,36 +9,46 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import axios from 'axios';
+
+const apiBase = 'https://alwon.onrender.com/api/customers';
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
 interface Customer {
-  name: string;
+  name: any;
+  _id?: string;
+  customername?: string;
   phone: string;
   balance: number;
   createdAt: string;
+  priceRates?: { bottleType: string; price: number }[];
   bottlePrices: { [key: string]: number };
+  idnumber?: string;
+  address?: string;
+  email?: string;
+  type?: string;
 }
 
-const sampleCustomers: Customer[] = [
-  {
-    name: 'John Doe',
-    phone: '0771234567',
-    balance: 1500,
-    createdAt: '2025-07-01',
-    bottlePrices: { '500ml': 25, '1L': 50, '1.5L': 75, '5L': 200, '19L': 500 },
-  },
-  {
-    name: 'Jane Smith',
-    phone: '0719876543',
-    balance: 0,
-    createdAt: '2025-07-05',
-    bottlePrices: { '500ml': 30, '1L': 55, '1.5L': 80, '5L': 220, '19L': 550 },
-  },
-];
+// Helper to convert backend priceRates to frontend bottlePrices
+const priceRatesToBottlePrices = (priceRates: { bottleType: string; price: number }[]) => {
+  const bottlePrices: { [key: string]: number } = {};
+  bottleTypes.forEach(type => {
+    const found = priceRates.find(rate => rate.bottleType === type);
+    bottlePrices[type] = found ? found.price : 0;
+  });
+  return bottlePrices;
+};
+
+// Helper to convert frontend bottlePrices to backend priceRates
+const bottlePricesToPriceRates = (bottlePrices: { [key: string]: number }) =>
+  bottleTypes.map(type => ({
+    bottleType: type,
+    price: bottlePrices[type] || 0,
+  }));
 
 const Customers: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>(sampleCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -64,36 +74,105 @@ const Customers: React.FC = () => {
     setDeleteOpen(true);
   };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
     if (currentEditIndex !== null) {
-      const updated = [...customers];
-      updated.splice(currentEditIndex, 1);
-      setCustomers(updated);
-      setCurrentEditIndex(null);
+      const customer = customers[currentEditIndex];
+      try {
+        await axios.delete(`${apiBase}/${customer._id}`);
+        const updated = [...customers];
+        updated.splice(currentEditIndex, 1);
+        setCustomers(updated);
+        setCurrentEditIndex(null);
+        handleDeleteClose();
+      } catch (err) {
+        // handle error
+      }
     }
-    handleDeleteClose();
   };
-  const handleAddCustomer = () => {
-    setCustomers([...customers, formData]);
-    handleClose();
-    resetForm();
+  // Fetch customers from backend
+  React.useEffect(() => {
+    axios.get(apiBase)
+      .then(res => {
+        setCustomers(
+          res.data.map((c: any) => ({
+            ...c,
+            name: c.customername,
+            bottlePrices: priceRatesToBottlePrices(c.priceRates || []),
+            balance: c.balance || 0,
+            createdAt: c.createdAt ? c.createdAt.split('T')[0] : '',
+          }))
+        );
+      })
+      .catch(err => {
+        // handle error
+      });
+  }, []);
+
+  // Add customer
+  const handleAddCustomer = async () => {
+    const payload = {
+      customername: formData.name,
+      phone: formData.phone,
+      balance: formData.balance,
+      createdAt: formData.createdAt,
+      priceRates: bottlePricesToPriceRates(formData.bottlePrices),
+      idnumber: 'AUTO', // or get from form if needed
+      address: 'N/A',   // or get from form if needed
+      email: `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`, // or get from form
+      type: 'regular',  // or get from form
+    };
+    try {
+      const res = await axios.post(`${apiBase}/add`, payload);
+      setCustomers([
+        ...customers,
+        {
+          ...res.data,
+          name: res.data.customername,
+          bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
+          balance: res.data.balance || 0,
+          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
+        },
+      ]);
+      handleClose();
+      resetForm();
+    } catch (err) {
+      // handle error
+    }
   };
 
-  const handleEdit = (index: number) => {
-    setCurrentEditIndex(index);
-    setFormData(customers[index]);
-    setEditOpen(true);
-  };
-
-  const handleUpdateCustomer = () => {
+  // Edit customer
+  const handleUpdateCustomer = async () => {
     if (currentEditIndex !== null) {
-      const updated = [...customers];
-      updated[currentEditIndex] = formData;
-      setCustomers(updated);
-      setCurrentEditIndex(null);
+      const customer = customers[currentEditIndex];
+      const payload = {
+        customername: formData.name,
+        phone: formData.phone,
+        balance: formData.balance,
+        createdAt: formData.createdAt,
+        priceRates: bottlePricesToPriceRates(formData.bottlePrices),
+        idnumber: customer.idnumber || 'AUTO',
+        address: customer.address || 'N/A',
+        email: customer.email || `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`,
+        type: customer.type || 'regular',
+      };
+      try {
+        const res = await axios.put(`${apiBase}/${customer._id}`, payload);
+        const updated = [...customers];
+        updated[currentEditIndex] = {
+          ...res.data,
+          name: res.data.customername,
+          bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
+          balance: res.data.balance || 0,
+          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
+        };
+        setCustomers(updated);
+        setCurrentEditIndex(null);
+        handleEditClose();
+        resetForm();
+      } catch (err) {
+        // handle error
+      }
     }
-    handleEditClose();
-    resetForm();
   };
 
 
@@ -106,6 +185,10 @@ const Customers: React.FC = () => {
       bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
+
+  function handleEdit(index: number): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <AdminLayout>
