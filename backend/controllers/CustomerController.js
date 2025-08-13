@@ -72,7 +72,7 @@ const deleteCustomer = async (req, res) => {
 // ✅ Edit/update a customer by ID
 const editCustomer = async (req, res) => {
   const { id } = req.params;
-  const { customername, idnumber, address, phone, email, type } = req.body;
+  const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
 
   if (!isValidObjectId(id)) {
     return res.status(400).json({ error: 'Invalid customer ID format.' });
@@ -85,7 +85,7 @@ const editCustomer = async (req, res) => {
   try {
     const updatedCustomer = await Customer.findByIdAndUpdate(
       id,
-      { customername, idnumber, address, phone, email, type },
+      { customername, idnumber, address, phone, email, type, priceRates },
       { new: true, runValidators: true }
     );
 
@@ -122,21 +122,74 @@ const searchCustomers = async (req, res) => {
 
 const getAllCustomerCreditSummaries = async (req, res) => {
   try {
-    // Aggregate payment data grouped by customerId
     const summaries = await Payment.aggregate([
       {
-        $match: { customerId: { $ne: null } } // Only registered customers
+        $match: { customerId: { $ne: null } }
       },
       {
         $group: {
           _id: '$customerId',
-          totalAmount: { $sum: { $ifNull: ['$amount', 0] } },
-          totalPayment: { $sum: { $ifNull: ['$paidAmount', 0] } }
+          totalCreditAmount: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'credit'] },
+                { $ifNull: ['$amount', 0] },
+                0
+              ]
+            }
+          },
+          totalChequeAmount: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'cheque'] },
+                { $ifNull: ['$amount', 0] },
+                0
+              ]
+            }
+          },
+          totalCashAmount: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'cash'] },
+                { $ifNull: ['$amount', 0] },
+                0
+              ]
+            }
+          },
+          totalCreditPayment: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'credit'] },
+                { $ifNull: ['$payment', 0] },
+                0
+              ]
+            }
+          },
+          totalChequePayment: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'cheque'] },
+                { $ifNull: ['$payment', 0] },
+                0
+              ]
+            }
+          },
+          totalCashPayment: {
+            $sum: {
+              $cond: [
+                { $eq: ['$paymentType', 'cash'] },
+                { $ifNull: ['$payment', 0] },
+                0
+              ]
+            }
+          }
         }
       },
       {
         $addFields: {
-          balance: { $subtract: ['$totalAmount', '$totalPayment'] }
+          creditBalance: { $subtract: ['$totalCreditAmount', '$totalCreditPayment'] },
+          chequeBalance: { $subtract: ['$totalChequeAmount', '$totalChequePayment'] },
+          cashBalance: { $subtract: ['$totalCashAmount', '$totalCashPayment'] }
         }
       },
       {
@@ -156,9 +209,15 @@ const getAllCustomerCreditSummaries = async (req, res) => {
           customername: '$customer.customername',
           email: '$customer.email',
           phone: '$customer.phone',
-          totalAmount: 1,
-          totalPayment: 1,
-          balance: 1
+          totalCreditAmount: 1,
+          totalCreditPayment: 1,
+          creditBalance: 1,
+          totalChequeAmount: 1,
+          totalChequePayment: 1,
+          chequeBalance: 1,
+          totalCashAmount: 1,
+          totalCashPayment: 1,
+          cashBalance: 1
         }
       }
     ]);

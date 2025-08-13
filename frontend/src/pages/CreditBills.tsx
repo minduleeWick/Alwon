@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Table,
@@ -14,8 +14,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
+import axios from 'axios';
 
 interface Bill {
   id: string;
@@ -25,51 +28,51 @@ interface Bill {
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  status: 'pending' | 'closed';
+  status: 'pending' | 'closed' | 'paid' | 'partially paid' | 'unpaid';
   paymentMethod: 'credit' | 'cash';
 }
 
-const sampleBills: Bill[] = [
-  {
-    id: '1',
-    invoiceNo: 'INV001',
-    createdAt: '2025-07-10',
-    customerName: 'John Doe',
-    totalAmount: 5000,
-    paidAmount: 2000,
-    remainingAmount: 3000,
-    status: 'pending',
-    paymentMethod: 'credit',
-  },
-  {
-    id: '2',
-    invoiceNo: 'INV002',
-    createdAt: '2025-07-11',
-    customerName: 'Jane Smith',
-    totalAmount: 3000,
-    paidAmount: 1000,
-    remainingAmount: 2000,
-    status: 'pending',
-    paymentMethod: 'credit',
-  },
-  {
-    id: '3',
-    invoiceNo: 'INV003',
-    createdAt: '2025-07-12',
-    customerName: 'Alice Johnson',
-    totalAmount: 2500,
-    paidAmount: 2500,
-    remainingAmount: 0,
-    status: 'closed',
-    paymentMethod: 'credit',
-  },
-];
-
 const CreditBills = () => {
-  const [bills, setBills] = useState<Bill[]>(sampleBills);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  const fetchBills = async () => {
+    try {
+      const res = await axios.get('https://alwon.onrender.com/api/payments/history');
+      const mapped = res.data
+        .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'credit')
+        .map((item: any, idx: number) => ({
+          id: item._id || `${idx + 1}`,
+          invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+          createdAt: item.paymentDate ? item.paymentDate.split('T')[0] : '',
+          customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          totalAmount: item.amount || 0,
+          paidAmount: item.payment || 0,
+          remainingAmount: item.deupayment || 0,
+          status: (item.status || '').toLowerCase() as Bill['status'],
+          paymentMethod: 'credit',
+        }));
+      setBills(mapped);
+    } catch (error) {
+      console.error('Error fetching credit bills:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load credit bills',
+        severity: 'error'
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchBills();
+  }, []);
 
   const handleOpen = (bill: Bill) => {
     setSelectedBill(bill);
@@ -82,27 +85,80 @@ const CreditBills = () => {
     setSelectedBill(null);
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!selectedBill || !paymentAmount) return;
 
     const pay = parseFloat(paymentAmount);
-    const updatedPaid = selectedBill.paidAmount + pay;
-    const updatedRemaining = selectedBill.totalAmount - updatedPaid;
-    const updatedStatus: 'pending' | 'closed' = updatedRemaining <= 0 ? 'closed' : 'pending';
+    if (isNaN(pay) || pay <= 0) {
+      setSnackbar({
+        open: true,
+        message: 'Please enter a valid payment amount',
+        severity: 'error'
+      });
+      return;
+    }
 
-    const updatedBills = bills.map((bill) =>
-      bill.id === selectedBill.id
-        ? {
-            ...bill,
-            paidAmount: updatedPaid,
-            remainingAmount: updatedRemaining > 0 ? updatedRemaining : 0,
-            status: updatedStatus,
-          }
-        : bill
-    );
+    try {
+      const newPaidAmount = selectedBill.paidAmount + pay;
+      const newRemainingAmount = Math.max(0, selectedBill.totalAmount - newPaidAmount);
+      
+      // Determine new status
+      let newStatus: Bill['status'];
+      if (newRemainingAmount <= 0) {
+        newStatus = 'paid';
+      } else if (newPaidAmount === 0) {
+        newStatus = 'unpaid';
+      } else {
+        newStatus = 'partially paid';
+      }
+      
+      // Update the payment in the database
+      await axios.put(`https://alwon.onrender.com/api/payments/update/${selectedBill.id}`, {
+        payment: newPaidAmount,
+        deupayment: newRemainingAmount,
+        status: newStatus
+      });
 
-    setBills(updatedBills);
+      // Update local state before fetching from server
+      const updatedBills = bills.map(bill => 
+        bill.id === selectedBill.id 
+          ? {
+              ...bill,
+              paidAmount: newPaidAmount,
+              remainingAmount: newRemainingAmount,
+              status: newStatus
+            } 
+          : bill
+      );
+      
+      setBills(updatedBills);
+      
+      // Then refresh bills from server to ensure data consistency
+      await fetchBills();
+      
+      setSnackbar({
+        open: true,
+        message: 'Payment processed successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to process payment',
+        severity: 'error'
+      });
+      // Refresh bills to ensure UI is in sync with DB
+      fetchBills();
+    }
+
     handleClose();
+  };
+
+  const getCreditStatus = (bill: Bill) => {
+    if (bill.remainingAmount <= 0) return 'Paid';
+    if (bill.paidAmount === 0) return 'Unpaid';
+    return 'Partially Paid';
   };
 
   return (
@@ -135,9 +191,7 @@ const CreditBills = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {bills
-              .filter((bill) => bill.paymentMethod === 'credit' && bill.status !== 'closed')
-              .map((bill) => (
+            {bills.map((bill) => (
                 <TableRow key={bill.id}>
                   <TableCell align="center">{bill.invoiceNo}</TableCell>
                   <TableCell align="center">{bill.createdAt}</TableCell>
@@ -145,13 +199,13 @@ const CreditBills = () => {
                   <TableCell align="center">{bill.totalAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.paidAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.remainingAmount.toFixed(2)}</TableCell>
-                  <TableCell align="center">{bill.status}</TableCell>
+                  <TableCell align="center">{getCreditStatus(bill)}</TableCell>
                   <TableCell align="center">
                     <Button
                       variant="contained"
                       size="small"
                       onClick={() => handleOpen(bill)}
-                      disabled={bill.status === 'closed'}
+                      disabled={getCreditStatus(bill) === 'Paid'}
                     >
                       Pay
                     </Button>
@@ -173,7 +227,11 @@ const CreditBills = () => {
             fullWidth
             value={paymentAmount}
             onChange={(e) => setPaymentAmount(e.target.value)}
-            inputProps={{ min: 0 }}
+            inputProps={{ 
+              min: 0,
+              max: selectedBill?.remainingAmount || 0
+            }}
+            helperText={`Maximum remaining: ${selectedBill?.remainingAmount.toFixed(2) || 0}`}
             margin="normal"
           />
         </DialogContent>
@@ -184,6 +242,18 @@ const CreditBills = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({...snackbar, open: false})}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
 
     </AdminLayout>
@@ -191,3 +261,5 @@ const CreditBills = () => {
 };
 
 export default CreditBills;
+
+

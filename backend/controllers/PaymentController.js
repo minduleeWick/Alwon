@@ -7,6 +7,13 @@ const { addCustomer } = require('./CustomerController'); // Adjust path
 
 const CurrentStock = mongoose.model('CurrentStock'); // Ensure it's defined or required from inventory
 
+
+function generateUniqueInvoiceId() {
+  const timestamp = Date.now().toString().slice(-5); // last 5 digits of time
+  const randomNum = Math.floor(Math.random() * 100);
+  return `INV${timestamp}${String(randomNum).padStart(2, '0')}`;
+}
+
 const issueBill = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -59,6 +66,8 @@ const issueBill = async (req, res) => {
         session.endSession();
         return res.status(404).json({ error: 'Customer not found.' });
       }
+      customerName = customer.customername;
+      customerPhone = customer.phone;
     }
 
     // For guests, validate guestInfo and register customer
@@ -99,6 +108,7 @@ const issueBill = async (req, res) => {
         session.endSession();
         return res.status(400).json({ error: 'Invalid chequeStatus. Must be Pending, Cleared, or Bounced.' });
       }
+      // We don't need to set customerName and customerPhone here as they're already in guestInfo
     }
 
     // Create payment documents
@@ -188,6 +198,7 @@ const issueBill = async (req, res) => {
   }
 };
 
+
 // ✅ Get payment history (all or by customer)
 const getPaymentHistory = async (req, res) => {
   try {
@@ -212,7 +223,116 @@ const getPaymentHistory = async (req, res) => {
   }
 };
 
+// Update payment record and handle returns
+const updatePayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const { status, returnedBottles, payment, deupayment } = req.body;
+
+    // Validate payment ID
+    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
+      return res.status(400).json({ error: 'Invalid payment ID format.' });
+    }
+
+    // Find the payment record
+    const payment_record = await Payment.findById(paymentId);
+    if (!payment_record) {
+      return res.status(404).json({ error: 'Payment record not found.' });
+    }
+
+    // Update payment and deupayment if provided
+    if (payment !== undefined) {
+      payment_record.payment = payment;
+    }
+    
+    if (deupayment !== undefined) {
+      payment_record.deupayment = deupayment;
+    }
+
+    // Update status if provided
+    if (status) {
+      payment_record.status = status;
+    }
+
+    // Process bottle returns if provided
+    if (returnedBottles && Array.isArray(returnedBottles) && returnedBottles.length > 0) {
+      // For each returned bottle, update the payment record and inventory
+      for (const returnItem of returnedBottles) {
+        const { type, quantity } = returnItem;
+        if (!type || quantity <= 0) continue;
+
+        // Find the matching bottle in the payment record
+        const bottleIndex = payment_record.bottles.findIndex(b => b.type === type);
+        if (bottleIndex === -1) continue;
+        
+        // Ensure we don't return more than was purchased
+        const originalQty = payment_record.bottles[bottleIndex].quantity;
+        const validReturnQty = Math.min(quantity, originalQty);
+        
+        if (validReturnQty <= 0) continue;
+
+        // Update the quantity in the payment record
+        payment_record.bottles[bottleIndex].quantity -= validReturnQty;
+        
+        // Find inventory document containing this bottle type
+        const inventoryDoc = await Inventory.findOne({ 'bottles.itemCode': type });
+        if (!inventoryDoc) {
+          continue; // Skip if inventory not found
+        }
+
+        // Update inventory - increase available quantity, decrease sold quantity
+        await Inventory.updateOne(
+          { _id: inventoryDoc._id },
+          {
+            $inc: {
+              'bottles.$[elem].availablequantity': validReturnQty,
+              'bottles.$[elem].soldquantity': -validReturnQty
+            }
+          },
+          {
+            arrayFilters: [{ 'elem.itemCode': type }]
+          }
+        );
+      }
+
+      // Recalculate the total amount based on updated bottle quantities
+      const newTotal = payment_record.bottles.reduce((sum, bottle) => {
+        return sum + (bottle.quantity * (bottle.price || 0));
+      }, 0);
+      
+      payment_record.amount = newTotal;
+      
+      // Update remaining amount if applicable (for credit payments)
+      if (payment_record.paymentMethod.toLowerCase() === 'credit') {
+        payment_record.deupayment = Math.max(0, newTotal - (payment_record.payment || 0));
+        
+        // Update status based on new payment balance
+        if (payment_record.deupayment <= 0) {
+          payment_record.status = 'paid';
+        } else if (payment_record.payment === 0) {
+          payment_record.status = 'unpaid';
+        } else {
+          payment_record.status = 'partially paid';
+        }
+      }
+    }
+
+    // Save the updated payment record
+    await payment_record.save();
+
+    res.status(200).json({ 
+      message: 'Payment updated successfully.', 
+      payment: payment_record 
+    });
+    
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   issueBill,
-  getPaymentHistory
+  getPaymentHistory,
+  updatePayment
 };

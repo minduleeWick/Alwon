@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Table,
@@ -10,8 +10,11 @@ import {
   Paper,
   Select,
   MenuItem,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
+import axios from 'axios';
 
 interface ChequePayment {
   id: string;
@@ -23,44 +26,72 @@ interface ChequePayment {
   status: 'pending' | 'cleared' | 'bounced';
 }
 
-const initialData: ChequePayment[] = [
-  {
-    id: '1',
-    invoiceNo: 'INV010',
-    customerName: 'Nimal Perera',
-    chequeNo: 'CHQ98765',
-    dueDate: '2025-07-20',
-    amount: 4500,
-    status: 'pending',
-  },
-  {
-    id: '2',
-    invoiceNo: 'INV011',
-    customerName: 'Sunil Silva',
-    chequeNo: 'CHQ12345',
-    dueDate: '2025-07-15',
-    amount: 3000,
-    status: 'cleared',
-  },
-  {
-    id: '3',
-    invoiceNo: 'INV012',
-    customerName: 'Dilani Fernando',
-    chequeNo: 'CHQ54321',
-    dueDate: '2025-07-25',
-    amount: 2000,
-    status: 'pending',
-  },
-];
-
 const ChequePayments = () => {
-  const [cheques, setCheques] = useState<ChequePayment[]>(initialData);
+  const [cheques, setCheques] = useState<ChequePayment[]>([]);
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
-  const handleStatusChange = (id: string, newStatus: ChequePayment['status']) => {
-    const updated = cheques.map((cheque) =>
-      cheque.id === id ? { ...cheque, status: newStatus } : cheque
-    );
-    setCheques(updated);
+  const fetchCheques = async () => {
+    try {
+      const res = await axios.get(' https://alwon.onrender.com/api/payments/history');
+      const mapped = res.data
+        .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
+        .map((item: any, idx: number) => ({
+          id: item._id || `${idx + 1}`,
+          invoiceNo: item.invoiceNo || `INV${idx + 1}`,
+          customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          chequeNo: item.chequeNo || '',
+          dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
+          amount: item.amount || 0,
+          status: (item.status || '').toLowerCase() as ChequePayment['status'],
+        }));
+      setCheques(mapped);
+    } catch (error) {
+      console.error('Error fetching cheque payments:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load cheque payments',
+        severity: 'error'
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchCheques();
+  }, []);
+
+  const handleStatusChange = async (id: string, newStatus: ChequePayment['status']) => {
+    try {
+      // Update status in the database
+      await axios.put(`https://alwon.onrender.com/api/payments/update/${id}`, {
+        status: newStatus
+      });
+      
+      // Make sure we create a new array with the updated status
+      const updated = cheques.map((cheque) =>
+        cheque.id === id ? { ...cheque, status: newStatus } : cheque
+      );
+      setCheques(updated);
+      
+      setSnackbar({
+        open: true,
+        message: 'Cheque status updated successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating cheque status:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update cheque status',
+        severity: 'error'
+      });
+      
+      // Refresh the data from the server to ensure UI is in sync with DB
+      fetchCheques();
+    }
   };
 
   return (
@@ -117,9 +148,22 @@ const ChequePayments = () => {
         </Table>
       </TableContainer>
       </Paper>
+
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbar({...snackbar, open: false})}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({...snackbar, open: false})}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
     </AdminLayout>
   );
 };
 
 export default ChequePayments;
+
