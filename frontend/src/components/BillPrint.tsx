@@ -11,12 +11,16 @@ interface InvoiceProps {
   customerName: string;
   customerPhone: string;
   paymentMethod: string;
+  bankName:string | undefined;
+  chequeStatus: string | undefined;
+  creditLimit:number | undefined;
+  dueDate:string | undefined;
   bottles: BottleEntry[];
   date: string;
 }
 
 const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
-  ({ customerName, customerPhone, paymentMethod, bottles, date }, ref) => {
+  ({ customerName, customerPhone, paymentMethod, bottles, date, bankName, chequeStatus, creditLimit, dueDate }, ref) => {
     const total = bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
     return (

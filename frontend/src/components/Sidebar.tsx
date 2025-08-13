@@ -40,7 +40,7 @@ const Sidebar: React.FC = () => {
             <li className={location.pathname === '/billing' ? 'active' : ''}>
               <Link to="/billing">
                 <ReceiptIcon className="icon" />
-                <span>Billing</span>
+                <span>Invoice</span>
               </Link>
             </li>
             <li className={location.pathname === '/reports' ? 'active' : ''}>

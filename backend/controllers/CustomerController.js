@@ -6,26 +6,38 @@ const Payment = require('../models/Payments');
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // ✅ Add a new customer
-const addCustomer = async (req, res) => {
+const addCustomer = async (req, res = null, session = null) => {
   try {
-    const { customername, idnumber, address, phone, email, type } = req.body;
+    const { customername, phone, type } = req.body;
 
     // Check for missing fields
-    if (!customername || !idnumber || !address || !phone || !email || !type) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    if (!customername || !phone || !type) {
+      const error = new Error('All fields are required.');
+      error.status = 400;
+      throw error;
     }
 
     // Create and save the customer
-    const customer = new Customer({ customername, idnumber, address, phone, email, type });
-    await customer.save();
-    res.status(201).json(customer);
+    const customer = new Customer({ customername, phone, type });
+    await customer.save({ session });
+
+    // If called as an API endpoint (res is provided), send response
+    if (res) {
+      return res.status(201).json(customer);
+    }
+    // If called internally, return the customer
+    return customer;
   } catch (err) {
     // Handle unique constraint and validation errors
     if (err.code === 11000) {
       const field = Object.keys(err.keyPattern)[0];
-      return res.status(409).json({ error: `${field} already exists.` });
+      const error = new Error(`${field} already exists.`);
+      error.status = 409;
+      throw error;
     }
-    res.status(400).json({ error: err.message });
+    // Ensure error has status
+    err.status = err.status || 400;
+    throw err;
   }
 };
 

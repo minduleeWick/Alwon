@@ -1,17 +1,35 @@
 const mongoose = require('mongoose');
-
 const Inventory = require('../models/Inventory');
 
+// Define CurrentStock model (if not in a separate file)
+const currentStockSchema = new mongoose.Schema({
+  brand: { type: String, required: true, trim: true },
+  itemCode: { type: String, required: true, trim: true },
+  itemName: { type: String, default: '' },
+  availablequantity: { type: Number, default: 0, min: 0 },
+  sellingprice: { type: Number, default: 150 },
+  pricePerUnit: { type: Number, default: 100 },
+  supplierName: { type: String, default: 'Default Supplier' },
+  totalreavanue: { type: Number, default: 0 },
+  soldquantity: { type: Number, default: 0 },
+  profitearn: { type: Number, default: 0 },
+});
+
+// Ensure unique index on brand and itemCode
+currentStockSchema.index({ brand: 1, itemCode: 1 }, { unique: true });
+
+const CurrentStock = mongoose.model('CurrentStock', currentStockSchema);
+
 // ✅ Helper: Check if MongoDB ObjectId is valid
- const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const addInventoryItem = async (req, res) => {
   try {
-    const { date, bottles } = req.body;
+    const { date, brand, bottles } = req.body;
 
-    // Validate date and bottles array
-    if (!date || !Array.isArray(bottles) || bottles.length === 0) {
-      return res.status(400).json({ error: 'Date and bottles are required.' });
+    // Validate date, brand, and bottles array
+    if (!date || !brand || !Array.isArray(bottles) || bottles.length === 0) {
+      return res.status(400).json({ error: 'Date, brand, and bottles are required.' });
     }
 
     // Validate each bottle and check for duplicates
@@ -37,14 +55,33 @@ const addInventoryItem = async (req, res) => {
     }
 
     // Create and save the inventory
-    const newInventory = new Inventory({ _id: new mongoose.Types.ObjectId(), date, bottles });
+    const newInventory = new Inventory({ _id: new mongoose.Types.ObjectId(), date, brand, bottles });
     const saved = await newInventory.save();
+
+    // Update CurrentStock
+    for (const bottle of bottles) {
+      const { itemCode, quantity, itemName, pricePerUnit, supplierName, sellingprice, totalreavanue, soldquantity, profitearn } = bottle;
+      await CurrentStock.findOneAndUpdate(
+        { brand, itemCode },
+        {
+          $set: {
+            itemName: itemName || '',
+            pricePerUnit: pricePerUnit || 100,
+            supplierName: supplierName || 'Default Supplier',
+            sellingprice: sellingprice || 150,
+          },
+          $inc: { availablequantity: quantity },
+        },
+        { upsert: true, new: true }
+      );
+    }
 
     return res.status(201).json({ message: 'Inventory added successfully', data: saved });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
+
 // ✅ Get all inventory items
 const getAllInventoryItems = async (req, res) => {
   try {
@@ -60,9 +97,9 @@ const getAllInventoryItems = async (req, res) => {
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-   if (!isValidObjectId(id)) {
-     return res.status(400).json({ error: 'Invalid item ID format.' });
-   }
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ error: 'Invalid item ID format.' });
+  }
 
   try {
     const item = await Inventory.findByIdAndDelete(id);
@@ -77,16 +114,16 @@ const deleteInventoryItem = async (req, res) => {
 
 const editInventoryItem = async (req, res) => {
   const { id } = req.params;
-  const { date, bottles } = req.body;
+  const { date, brand, bottles } = req.body;
 
   // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid item ID format.' });
   }
 
-  // Validate date and bottles array
-  if (!date || !Array.isArray(bottles) || bottles.length === 0) {
-    return res.status(400).json({ error: 'Date and bottles array are required.' });
+  // Validate date, brand, and bottles array
+  if (!date || !brand || !Array.isArray(bottles) || bottles.length === 0) {
+    return res.status(400).json({ error: 'Date, brand, and bottles array are required.' });
   }
 
   // Validate each bottle
@@ -122,7 +159,7 @@ const editInventoryItem = async (req, res) => {
     // Update the inventory item
     const updatedItem = await Inventory.findByIdAndUpdate(
       id,
-      { date, bottles: normalizedBottles },
+      { date, brand, bottles: normalizedBottles },
       { new: true, runValidators: true }
     );
 
@@ -144,8 +181,8 @@ const searchInventoryItems = async (req, res) => {
   try {
     const items = await Inventory.find({
       $or: [
-        { itemName: { $regex: query, $options: 'i' } },
-        { itemCode: { $regex: query, $options: 'i' } },
+        { 'bottles.itemName': { $regex: query, $options: 'i' } },
+        { 'bottles.itemCode': { $regex: query, $options: 'i' } },
       ],
     });
     res.json(items);
@@ -180,54 +217,39 @@ const updateInventoryByItemCode = async (req, res) => {
         continue;
       }
 
-      const item = await Inventory.findOne({ itemCode });
-
-      if (!item) {
+      const inventory = await Inventory.findOne({ 'bottles.itemCode': itemCode });
+      if (!inventory) {
         results.push({ itemCode, error: 'Item not found.' });
         continue;
       }
 
-      if (quantity != null) item.quantity = quantity;
-      if (availablequantity != null) item.availablequantity = availablequantity;
-      if (totalreavanue != null) item.totalreavanue = totalreavanue;
-      if (profitearn != null) item.profitearn = profitearn;
-      if (date != null) item.date = date;
+      const bottle = inventory.bottles.find((b) => b.itemCode === itemCode);
+      if (!bottle) {
+        results.push({ itemCode, error: 'Bottle not found in inventory.' });
+        continue;
+      }
 
-      await item.save();
-      results.push({ itemCode, message: 'Item updated successfully', updatedItem: item });
+      if (quantity != null) bottle.quantity = quantity;
+      if (availablequantity != null) bottle.availablequantity = availablequantity;
+      if (totalreavanue != null) bottle.totalreavanue = totalreavanue;
+      if (profitearn != null) bottle.profitearn = profitearn;
+      if (date != null) inventory.date = date;
+
+      await inventory.save();
+      results.push({ itemCode, message: 'Item updated successfully', updatedItem: inventory });
     }
 
     res.status(200).json({ results });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-// Get total available stock for each itemCode across all inventory records
-const getCurrentStock = async (session) => {
+
+const getCurrentStock = async (session, brand = null) => {
   try {
-    const stock = await Inventory.aggregate([
-      { $unwind: '$bottles' },
-      {
-        $group: {
-          _id: '$bottles.itemCode',
-          itemName: { $first: '$bottles.itemName' },
-          availablequantity: { $sum: '$bottles.availablequantity' },
-          sellingprice: { $first: '$bottles.sellingprice' },
-          pricePerUnit: { $first: '$bottles.pricePerUnit' },
-        },
-      },
-      {
-        $project: {
-          itemCode: '$_id',
-          itemName: 1,
-          availablequantity: 1,
-          sellingprice: 1,
-          pricePerUnit: 1,
-          _id: 0,
-        },
-      },
-    ]).session(session);
+    const match = {};
+    if (brand) match.brand = brand;
+    const stock = await CurrentStock.find(match).session(session);
     return stock;
   } catch (err) {
     throw new Error(`Failed to get current stock: ${err.message}`);
@@ -235,12 +257,10 @@ const getCurrentStock = async (session) => {
 };
 
 // Check and update inventory availability
-const checkInventoryAvailability = async (bottles, session) => {
+const checkInventoryAvailability = async (bottles, brand, session) => {
   try {
-    // Get total stock
-    const currentStock = await getCurrentStock(session);
+    const currentStock = await getCurrentStock(session, brand);
 
-    // Validate availability for each bottle
     const updatedBottles = [];
     for (const bottle of bottles) {
       const { type, quantity } = bottle;
@@ -248,52 +268,25 @@ const checkInventoryAvailability = async (bottles, session) => {
         throw new Error(`Invalid bottle data: type=${type}, quantity=${quantity}`);
       }
 
-      // Find stock for itemName (type maps to itemName)
-      const stockItem = currentStock.find((s) => s.itemCode === type);
+      const stockItem = currentStock.find((s) => s.itemName === type && s.brand === brand);
       if (!stockItem) {
-        throw new Error(`Item '${type}' not found in inventory.`);
+        throw new Error(`Item '${type}' not found in inventory for brand '${brand}'.`);
       }
       if (stockItem.availablequantity < quantity) {
-        throw new Error(`Insufficient quantity for '${type}'. Available: ${stockItem.availablequantity}, Requested: ${quantity}`);
+        throw new Error(`Insufficient quantity for '${type}' (brand: ${brand}). Available: ${stockItem.availablequantity}, Requested: ${quantity}`);
       }
 
-      // Store itemCode for Payment
       updatedBottles.push({ ...bottle, itemCode: stockItem.itemCode });
     }
 
-    // Deduct quantities from the most recent inventory records
+    // Deduct quantities from CurrentStock
     for (const bottle of updatedBottles) {
       const { itemCode, quantity } = bottle;
-      let remainingQuantity = quantity;
-
-      // Get all inventory documents with the itemCode, sorted by date descending
-      const inventories = await Inventory.find({
-        'bottles.itemCode': itemCode,
-      })
-        .sort({ date: -1 })
-        .session(session);
-
-      for (const inventory of inventories) {
-        if (remainingQuantity <= 0) break;
-
-        const inventoryBottle = inventory.bottles.find((b) => b.itemCode === itemCode);
-        if (!inventoryBottle || inventoryBottle.availablequantity <= 0) continue;
-
-        const deductQuantity = Math.min(remainingQuantity, inventoryBottle.availablequantity);
-        inventoryBottle.availablequantity -= deductQuantity;
-        inventoryBottle.soldquantity += deductQuantity;
-        inventoryBottle.totalreavanue += deductQuantity * inventoryBottle.sellingprice;
-        inventoryBottle.profitearn +=
-          deductQuantity * (inventoryBottle.sellingprice - inventoryBottle.pricePerUnit);
-
-        remainingQuantity -= deductQuantity;
-
-        await inventory.save({ session });
-      }
-
-      if (remainingQuantity > 0) {
-        throw new Error(`Failed to deduct quantity for itemCode '${itemCode}'. Remaining: ${remainingQuantity}`);
-      }
+      await CurrentStock.findOneAndUpdate(
+        { brand, itemCode },
+        { $inc: { availablequantity: -quantity, soldquantity: quantity } },
+        { session }
+      );
     }
 
     return { success: true, updatedBottles };
@@ -301,6 +294,7 @@ const checkInventoryAvailability = async (bottles, session) => {
     throw new Error(`Inventory check failed: ${err.message}`);
   }
 };
+
 // ✅ Export all functions
 module.exports = {
   addInventoryItem,
@@ -311,4 +305,5 @@ module.exports = {
   updateInventoryByItemCode,
   checkInventoryAvailability,
   isValidObjectId,
+  getCurrentStock
 };

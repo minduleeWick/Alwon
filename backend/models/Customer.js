@@ -14,7 +14,7 @@ const customerSchema = new mongoose.Schema({
    },
      address: {  
      type: String,
-     required: true,
+     required: false,
    },
 
   phone: {
@@ -32,7 +32,6 @@ const customerSchema = new mongoose.Schema({
    },
    type: {
      type: String,
-     enum: ['Individual', 'Business'],
      required: false
    },
     createdAt: {
