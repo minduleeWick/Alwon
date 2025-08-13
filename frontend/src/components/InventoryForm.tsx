@@ -21,6 +21,7 @@ interface BottleEntry {
 
 interface InventoryItem {
   _id: string;
+  brand:string;
   date: string;
   bottles: BottleEntry[];
 }
@@ -34,6 +35,7 @@ interface Props {
 
 const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEditMode }) => {
   const [date, setDate] = useState(initialData?.date || '');
+  const [brand, setBrand] = useState(initialData?.brand || '');
   const [bottles, setBottles] = useState<BottleEntry[]>(
     initialData?.bottles || [
       {
@@ -131,6 +133,7 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
           soldquantity: bottle.soldquantity || 0,
           profitearn: bottle.profitearn || 0,
         })),
+        brand: brand || 'Unknown Brand',
       },
     ];
 
@@ -149,6 +152,16 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
         margin="normal"
         required
       />
+      <div className="brand-select">
+       <label>
+          Brand:
+          <select defaultValue='Select Brand'  value={brand} onChange={(e) => setBrand(e.target.value)}>
+            <option value="Brand A">Brand A</option>
+            <option value="Brand B">Brand B</option>
+            <option value="Brand C">Brand C</option>
+          </select>
+        </label>
+      </div>
 
       {bottles.map((bottle, index) => (
         <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>

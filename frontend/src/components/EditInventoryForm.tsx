@@ -10,6 +10,7 @@ interface Bottle {
 
 interface InventoryItem {
   date: string;
+  brand: string;
   bottles: Bottle[];
 }
 
@@ -36,7 +37,8 @@ const EditInventoryForm: React.FC<EditInventoryFormProps> = ({ initialData, onSu
   const handleSubmit = () => {
     const updatedItem: InventoryItem = {
       date,
-      bottles: bottleTypes.map((type) => ({ type, quantity: bottles[type] || 0 }))
+      bottles: bottleTypes.map((type) => ({ type, quantity: bottles[type] || 0 })),
+      brand: ''
     };
     onSubmit(updatedItem);
   };

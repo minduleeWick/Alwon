@@ -46,6 +46,7 @@ interface BottleEntry {
 interface InventoryItem {
   _id: string;
   date: string;
+  brand: string;
   bottles: BottleEntry[];
 }
 
@@ -132,12 +133,12 @@ const Inventory: React.FC = () => {
 
   const handleSubmit = async (items: InventoryItem[]) => {
     try {
-      const { _id, date, bottles } = items[0];
-      
+      const { _id, date, brand, bottles } = items[0];
+
       // Log for debugging
       console.log('Submitting inventory:', { _id, date, bottles });
 
-      const payload = { date, bottles: normalizeBottles(bottles) };
+      const payload = { date, brand, bottles: normalizeBottles(bottles) };
 
       if (_id && _id !== '') {
         // Edit mode: Call PUT endpoint
@@ -186,6 +187,7 @@ const Inventory: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Date</TableCell>
+                  <TableCell>Brand</TableCell>
                   {bottleTypes.map((type) => (
                     <TableCell key={type} align="center">{type}</TableCell>
                   ))}
@@ -197,6 +199,13 @@ const Inventory: React.FC = () => {
                       type="date"
                       value={filters.date}
                       onChange={(e) => setFilters({ ...filters, date: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <input
+                      type="text"
+                      value={filters.brand}
+                      onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
                     />
                   </TableCell>
                   {bottleTypes.map((type) => (
@@ -222,6 +231,7 @@ const Inventory: React.FC = () => {
                     return (
                       <TableRow key={item._id}>
                         <TableCell>{item.date}</TableCell>
+                        <TableCell>{item.brand}</TableCell>
                         {bottleTypes.map(type => (
                           <TableCell key={type} align="center">{bottleMap[type] || 0}</TableCell>
                         ))}

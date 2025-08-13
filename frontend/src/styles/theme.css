@@ -340,6 +340,22 @@ body {
   width: 50%;
   
 }
+.brand-select {
+  flex: 1;
+  text-align: left; /* Always align left */
+}
+.brand-select select,
+.brand-select input {
+  flex: 1 1 150px;  /* grow/shrink with a minimum width */
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-left: 1rem;
+  margin-bottom: 2rem;
+  width: 50%;
+  
+}
 
 .remaining-amount {
   flex: 1;
