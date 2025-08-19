@@ -11,7 +11,8 @@ import { ThemeContext } from '../context/ThemeContext';
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  const [username] = useState('Admin User');
+  // Get username from localStorage, fallback to 'Admin User'
+  const [username] = useState(localStorage.getItem('username') || 'Admin User');
 
   // Settings state
   const [notifications, setNotifications] = useState(true);
