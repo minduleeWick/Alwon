@@ -111,7 +111,7 @@ const CreditBills = () => {
       } else {
         newStatus = 'partially paid';
       }
-      
+      //fdgdgdfg
       // Update the payment in the database
       await axios.put(`https://alwon.onrender.com/api/payments/update/${selectedBill.id}`, {
         payment: newPaidAmount,
