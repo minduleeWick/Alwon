@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/inventory.css';
-import { v4 as uuidv4 } from 'uuid';
 
 import {
   Table,

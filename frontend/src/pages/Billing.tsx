@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import axios from '../utils/axiosConfig';
 import InvoicePreview from '../components/BillPrint';
-
 interface Customer {
   _id: string;
   customername: string;
