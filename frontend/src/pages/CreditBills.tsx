@@ -25,6 +25,7 @@ interface Bill {
   invoiceNo: string;
   createdAt: string;
   customerName: string;
+  brand: string;  // Add brand to the interface
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
@@ -53,6 +54,10 @@ const CreditBills = () => {
           invoiceNo: item.invoiceNo || `INV${idx + 1}`,
           createdAt: item.paymentDate ? item.paymentDate.split('T')[0] : '',
           customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          // Get brand from bottles array or use the main brand
+          brand: item.bottles && item.bottles.length > 0 ? 
+                 item.bottles[0].brand || item.brand || 'Unknown' : 
+                 item.brand || 'Unknown',
           totalAmount: item.amount || 0,
           paidAmount: item.payment || 0,
           remainingAmount: item.deupayment || 0,
@@ -183,6 +188,7 @@ const CreditBills = () => {
               <TableCell align="center"><b>Invoice No</b></TableCell>
               <TableCell align="center"><b>Date</b></TableCell>
               <TableCell align="center"><b>Customer Name</b></TableCell>
+              <TableCell align="center"><b>Brand</b></TableCell>
               <TableCell align="center"><b>Total</b></TableCell>
               <TableCell align="center"><b>Paid</b></TableCell>
               <TableCell align="center"><b>Remaining</b></TableCell>
@@ -196,6 +202,7 @@ const CreditBills = () => {
                   <TableCell align="center">{bill.invoiceNo}</TableCell>
                   <TableCell align="center">{bill.createdAt}</TableCell>
                   <TableCell align="center">{bill.customerName}</TableCell>
+                  <TableCell align="center">{bill.brand}</TableCell>
                   <TableCell align="center">{bill.totalAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.paidAmount.toFixed(2)}</TableCell>
                   <TableCell align="center">{bill.remainingAmount.toFixed(2)}</TableCell>

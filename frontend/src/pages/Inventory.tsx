@@ -45,6 +45,7 @@ interface BottleEntry {
 interface InventoryItem {
   _id: string;
   date: string;
+  brand: string;
   bottles: BottleEntry[];
 }
 
@@ -61,6 +62,7 @@ const Inventory: React.FC = () => {
 
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     date: '',
+    brand: '',
     ...Object.fromEntries(bottleTypes.map(type => [type, ''])),
   });
 
@@ -76,7 +78,7 @@ const Inventory: React.FC = () => {
 
   const fetchInventory = async () => {
     try {
-      const response = await axios.get('https://alwon.onrender.com/api/inventory');
+      const response = await axios.get('http://localhost:5000/api/inventory');
       setInventory(response.data);
     } catch {
       setSnackbar({ open: true, message: 'Failed to fetch inventory', severity: 'error' });
@@ -104,7 +106,7 @@ const Inventory: React.FC = () => {
   const handleDelete = async () => {
     try {
       if (!currentItem?._id) throw new Error("Missing inventory ID");
-      await axios.delete(`https://alwon.onrender.com/api/inventory/${currentItem._id}`);
+      await axios.delete(`http://localhost:5000/api/inventory/${currentItem._id}`);
       await fetchInventory();
       setSnackbar({ open: true, message: 'Deleted successfully', severity: 'success' });
     } catch (err: any) {
@@ -131,21 +133,21 @@ const Inventory: React.FC = () => {
 
   const handleSubmit = async (items: InventoryItem[]) => {
     try {
-      const { _id, date, bottles } = items[0];
-      
-      // Log for debugging
-      console.log('Submitting inventory:', { _id, date, bottles });
+      const { _id, date, brand, bottles } = items[0];
 
-      const payload = { date, bottles: normalizeBottles(bottles) };
+      // Log for debugging
+      console.log('Submitting inventory:', { _id, date, brand, bottles });
+
+      const payload = { date, brand, bottles: normalizeBottles(bottles) };
 
       if (_id && _id !== '') {
         // Edit mode: Call PUT endpoint
-        await axios.put(`https://alwon.onrender.com/api/inventory/${_id}`, payload);
+        await axios.put(`http://localhost:5000/api/inventory/${_id}`, payload);
         setSnackbar({ open: true, message: 'Inventory updated!', severity: 'success' });
         setEditOpen(false);
       } else {
         // Add mode: Call POST endpoint
-        await axios.post('https://alwon.onrender.com/api/inventory/add', payload);
+        await axios.post('http://localhost:5000/api/inventory/add', payload);
         setSnackbar({ open: true, message: 'Inventory added!', severity: 'success' });
         setOpen(false);
       }
@@ -159,6 +161,7 @@ const Inventory: React.FC = () => {
 
   const filteredInventory = inventory.filter((item) => {
     const matchesDate = filters.date === '' || item.date.includes(filters.date);
+    const matchesBrand = filters.brand === '' || (item.brand ?? '').toLowerCase().includes(filters.brand.toLowerCase());
     // Fix here: ensure bottles is defined before mapping
     const bottleMap = Object.fromEntries((item.bottles ?? []).map((b) => [b.itemCode, b.quantity.toString()]));
 
@@ -168,7 +171,7 @@ const Inventory: React.FC = () => {
       return (bottleMap[type] || '') === filterVal;
     });
 
-    return matchesDate && matchesQuantities;
+    return matchesDate && matchesBrand && matchesQuantities;
   });
 
   return (
@@ -185,6 +188,7 @@ const Inventory: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Date</TableCell>
+                  <TableCell>Brand</TableCell>
                   {bottleTypes.map((type) => (
                     <TableCell key={type} align="center">{type}</TableCell>
                   ))}
@@ -196,6 +200,13 @@ const Inventory: React.FC = () => {
                       type="date"
                       value={filters.date}
                       onChange={(e) => setFilters({ ...filters, date: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <input
+                      type="text"
+                      value={filters.brand}
+                      onChange={(e) => setFilters({ ...filters, brand: e.target.value })}
                     />
                   </TableCell>
                   {bottleTypes.map((type) => (
@@ -221,6 +232,7 @@ const Inventory: React.FC = () => {
                     return (
                       <TableRow key={item._id}>
                         <TableCell>{item.date}</TableCell>
+                        <TableCell>{item.brand}</TableCell>
                         {bottleTypes.map(type => (
                           <TableCell key={type} align="center">{bottleMap[type] || 0}</TableCell>
                         ))}

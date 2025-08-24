@@ -5,18 +5,38 @@ interface BottleEntry {
   type: string;
   quantity: number;
   price: number;
+  brand?: string; // Add brand as optional field
 }
 
 interface InvoiceProps {
   customerName: string;
   customerPhone: string;
   paymentMethod: string;
+  bankName: string | undefined;
+  chequeStatus: string | undefined;
+  creditLimit: number | undefined;
+  dueDate: string | undefined;
   bottles: BottleEntry[];
   date: string;
+  brand?: string; // Add brand as optional field
 }
 
 const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
-  ({ customerName, customerPhone, paymentMethod, bottles, date }, ref) => {
+  (
+    {
+      customerName,
+      customerPhone,
+      paymentMethod,
+      bottles,
+      date,
+      bankName,
+      chequeStatus,
+      creditLimit,
+      dueDate,
+      brand, // Include brand in destructuring
+    },
+    ref
+  ) => {
     const total = bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
     return (
@@ -25,7 +45,6 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
             <img src="logo.png" alt="Company Logo" className="invoice-logo" />
           </div>
         <header className="invoice-header">
-          
           <h1>INVOICE</h1>
           <span>No: INV-2025-01</span>
         </header>
@@ -46,6 +65,7 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
         </div>
 
         <p className="invoice-date">Date: {date}</p>
+        {brand && <p className="invoice-brand">Brand: {brand}</p>}
 
         <table className="invoice-table">
           <thead>
@@ -59,7 +79,7 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
           <tbody>
             {bottles.map((b, i) => (
               <tr key={i}>
-                <td>{b.type} Bottle</td>
+                <td>{b.type} Bottle {b.brand && `(${b.brand})`}</td>
                 <td>{b.quantity}</td>
                 <td>Rs. {b.price.toFixed(2)}</td>
                 <td>Rs. {(b.quantity * b.price).toFixed(2)}</td>

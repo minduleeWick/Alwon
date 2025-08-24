@@ -15,11 +15,12 @@ import {
 } from '@mui/material';
 import AdminLayout from '../layouts/AdminLayout';
 import axios from 'axios';
-//dgf
+
 interface ChequePayment {
   id: string;
   invoiceNo: string;
   customerName: string;
+  brand: string;  // Add brand to the interface
   chequeNo: string;
   dueDate: string;
   amount: number;
@@ -43,6 +44,10 @@ const ChequePayments = () => {
           id: item._id || `${idx + 1}`,
           invoiceNo: item.invoiceNo || `INV${idx + 1}`,
           customerName: item.customerId?.customername || item.guestInfo?.name || 'Unknown',
+          // Get brand from bottles array or use the main brand
+          brand: item.bottles && item.bottles.length > 0 ? 
+                 item.bottles[0].brand || item.brand || 'Unknown' : 
+                 item.brand || 'Unknown',
           chequeNo: item.chequeNo || '',
           dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
           amount: item.amount || 0,
@@ -115,6 +120,7 @@ const ChequePayments = () => {
             <TableRow style={{ backgroundColor: '#f0f0f0' }}>
               <TableCell align="center"><b>Invoice No</b></TableCell>
               <TableCell align="center"><b>Customer Name</b></TableCell>
+              <TableCell align="center"><b>Brand</b></TableCell>
               <TableCell align="center"><b>Cheque No</b></TableCell>
               <TableCell align="center"><b>Due Date</b></TableCell>
               <TableCell align="center"><b>Amount</b></TableCell>
@@ -126,6 +132,7 @@ const ChequePayments = () => {
               <TableRow key={row.id}>
                 <TableCell align="center">{row.invoiceNo}</TableCell>
                 <TableCell align="center">{row.customerName}</TableCell>
+                <TableCell align="center">{row.brand}</TableCell>
                 <TableCell align="center">{row.chequeNo}</TableCell>
                 <TableCell align="center">{row.dueDate}</TableCell>
                 <TableCell align="center">{row.amount.toFixed(2)}</TableCell>

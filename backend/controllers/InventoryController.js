@@ -7,11 +7,11 @@ const Inventory = require('../models/Inventory');
 
 const addInventoryItem = async (req, res) => {
   try {
-    const { date, bottles } = req.body;
+    const { date, bottles, brand } = req.body;
 
-    // Validate date and bottles array
-    if (!date || !Array.isArray(bottles) || bottles.length === 0) {
-      return res.status(400).json({ error: 'Date and bottles are required.' });
+    // Validate date, brand, and bottles array
+    if (!date || !brand || !Array.isArray(bottles) || bottles.length === 0) {
+      return res.status(400).json({ error: 'Date, brand, and bottles are required.' });
     }
 
     // Validate each bottle and check for duplicates
@@ -36,8 +36,8 @@ const addInventoryItem = async (req, res) => {
       }
     }
 
-    // Create and save the inventory
-    const newInventory = new Inventory({ _id: new mongoose.Types.ObjectId(), date, bottles });
+    // Create and save the inventory (include brand)
+    const newInventory = new Inventory({ _id: new mongoose.Types.ObjectId(), date, brand, bottles });
     const saved = await newInventory.save();
 
     return res.status(201).json({ message: 'Inventory added successfully', data: saved });
@@ -76,16 +76,16 @@ const deleteInventoryItem = async (req, res) => {
 
 const editInventoryItem = async (req, res) => {
   const { id } = req.params;
-  const { date, bottles } = req.body;
+  const { date, bottles, brand } = req.body;
 
   // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ error: 'Invalid item ID format.' });
   }
 
-  // Validate date and bottles array
-  if (!date || !Array.isArray(bottles) || bottles.length === 0) {
-    return res.status(400).json({ error: 'Date and bottles array are required.' });
+  // Validate date, brand, and bottles array
+  if (!date || !brand || !Array.isArray(bottles) || bottles.length === 0) {
+    return res.status(400).json({ error: 'Date, brand, and bottles array are required.' });
   }
 
   // Validate each bottle
@@ -118,10 +118,10 @@ const editInventoryItem = async (req, res) => {
       profitearn: Number(bottle.profitearn) || 0,
     }));
 
-    // Update the inventory item
+    // Update the inventory item (include brand)
     const updatedItem = await Inventory.findByIdAndUpdate(
       id,
-      { date, bottles: normalizedBottles },
+      { date, brand, bottles: normalizedBottles },
       { new: true, runValidators: true }
     );
 
@@ -203,6 +203,39 @@ const updateInventoryByItemCode = async (req, res) => {
   }
 };
 
+// Get current stock information
+const getStockInfo = async (req, res) => {
+  try {
+    // Get all inventory items
+    const inventoryItems = await Inventory.find();
+    
+    // Transform into stock data format with aggregated quantities
+    const stockMap = new Map();
+    
+    inventoryItems.forEach(item => {
+      const { brand, bottles } = item;
+      
+      bottles.forEach(bottle => {
+        const key = `${brand}-${bottle.itemCode}`;
+        const currentQuantity = stockMap.has(key) ? stockMap.get(key).quantity : 0;
+        
+        stockMap.set(key, {
+          brand,
+          bottleSize: bottle.itemCode,
+          quantity: currentQuantity + bottle.availablequantity
+        });
+      });
+    });
+    
+    // Convert map to array
+    const stockData = Array.from(stockMap.values());
+    
+    res.status(200).json(stockData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ✅ Export all functions
 module.exports = {
   addInventoryItem,
@@ -210,5 +243,6 @@ module.exports = {
   editInventoryItem,
   deleteInventoryItem,
   searchInventoryItems,
-  updateInventoryByItemCode
+  updateInventoryByItemCode,
+  getStockInfo
 };

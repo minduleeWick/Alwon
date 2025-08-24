@@ -1,11 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/theme.css';
-import { Tabs, Tab, Box } from '@mui/material';
+import { 
+  Tabs, 
+  Tab, 
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
+} from '@mui/material';
 import InvoicePreview from '../components/BillPrint';
 import axios from 'axios';
 
-const bottleSizes = ['500ml', '1L', '5L', '20L'];
+const bottleSizes = ['500ml', '1L', '1.5L', '5L', '20L'];
 
 type BottleKey = 'type' | 'quantity' | 'price';
 //edwdasdad
@@ -32,15 +43,33 @@ const Billing: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const [creditAmount, setCreditAmount] = useState(0);
+  const [brand, setBrand] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [chequeStatus, setChequeStatus] = useState('Pending');
+  const [creditLimit, setCreditLimit] = useState(0);
+  const [dueDate, setDueDate] = useState('');
+  const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
 
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get(' https://alwon.onrender.com/api/customers')
+      axios.get(' http://localhost:5000/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
   }, [tabIndex]);
+
+  // Fetch stock data from backend
+  useEffect(() => {
+    // Replace mock data with actual API call
+    axios.get('http://localhost:5000/api/inventory/stock')
+      .then(res => setStockData(res.data))
+      .catch(err => {
+        console.error("Error fetching stock data:", err);
+        // Fallback to empty array if API fails
+        setStockData([]);
+      });
+  }, []);
 
   // Recalculate credit amount whenever needed
   useEffect(() => {
@@ -142,6 +171,11 @@ const Billing: React.FC = () => {
       return;
     }
 
+    if (!brand) {
+      alert('Please select a brand');
+      return;
+    }
+
     const total = calculateTotal();
 
     const billData = {
@@ -151,28 +185,39 @@ const Billing: React.FC = () => {
       quantity: bottles.reduce((sum, b) => sum + b.quantity, 0),
       itemCode: bottles[0].type,
       itemName: bottles.map(b => b.type).join(', '),
+      brand: brand, // Add brand information
       amount: total,
       payment: paymentMethod === 'credit' ? paidAmount : total,
       deupayment: paymentMethod === 'credit' ? creditAmount : 0,
-      creaditlimit: 0,
+      creaditlimit: creditLimit,
       paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
       status: 'pending',
       ...(paymentMethod === 'cheque' && {
         chequeNo,
         chequeDate,
+        bankName,
+        chequeStatus,
         remainingAmount
       }),
       bottles: bottles.map(b => ({
         type: b.type,
         quantity: b.quantity,
-        price: b.price
+        price: b.price,
+        brand: brand // Add brand to each bottle
       }))
     };
 
     try {
-      const response = await axios.post(' https://alwon.onrender.com/api/payments/issue', billData);
+      const response = await axios.post(' http://localhost:5000/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
       setSuccess(true);
+      
+      // Refresh stock data immediately after successful payment
+      axios.get('http://localhost:5000/api/inventory/stock')
+        .then(res => setStockData(res.data))
+        .catch(err => {
+          console.error("Error fetching updated stock data:", err);
+        });
     } catch (error: any) {
       if (error.response && error.response.data && error.response.data.error) {
         alert('Failed to save bill: ' + error.response.data.error);
@@ -185,108 +230,145 @@ const Billing: React.FC = () => {
 
   const handlePrint = () => window.print();
 
+  // Filter stock data based on selected brand
+  const filteredStockData = brand 
+    ? stockData.filter(item => item.brand === brand)
+    : stockData;
+
+  // Get unique brands for stock display
+  const uniqueBrands = React.useMemo(() => {
+    const brands = new Set(stockData.map(item => item.brand));
+    return Array.from(brands);
+  }, [stockData]);
+
   return (
     <AdminLayout>
-      <div className="card billing-card">
-        <div style={{textAlign: 'center',fontSize: 'x-large',fontWeight: 'bold',color: '#0d4483',fontFamily: "'Times New Roman', Times, serif"}}>
-          <h1>Invoice</h1>
-        </div>
-
-        <Box sx={{ width: '100%', bgcolor: 'background.paper', mb: 2 }}>
-          <Tabs value={tabIndex} onChange={handleTabChange} centered>
-            <Tab label="Registered Customer" />
-            <Tab label="Guest Customer" />
-          </Tabs>
-        </Box>
-
-        <form onSubmit={handleSubmit}>
-          {tabIndex === 0 && (
-            <div className="customer-search">
-              <input
-                type="text"
-                placeholder="Type customer name"
-                value={customerSearch}
-                onChange={(e) => {
-                  setCustomerSearch(e.target.value);
-                  setSelectedCustomer(null);
-                }}
-              />
-              {customerSearch && !selectedCustomer && (
-                <ul className="customer-list">
-                  {filteredCustomers.map((c) => (
-                    <li key={c._id} onClick={() => {
-                      setSelectedCustomer(c._id);
-                      setCustomerSearch(c.customername);
-                    }}>
-                      {c.customername} ({c.phone})
-                    </li>
-                  ))}
-                  {filteredCustomers.length === 0 && <li>No matches found</li>}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {tabIndex === 1 && (
-            <div className="guest-input-row">
-              <div className="guest-input">
-                <label>
-                  Name:
-                  <input
-                    type="text"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    required
-                  />
-                </label>
-              </div>
-              <div className="guest-input">
-                <label>
-                  Phone:
-                  <input
-                    type="text"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    required
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-
-          <h3>Bottle Details</h3>
-          {bottles.map((item, idx) => (
-            <div key={idx} className="bottle-row">
-              <select value={item.type} onChange={(e) => handleBottleChange(idx, 'type', e.target.value)} required>
-                <option value="">Select Bottle Size</option>
-                {bottleSizes.map(size => <option key={size} value={size}>{size}</option>)}
-              </select>
-              <label>Qty:
-                <input type="number" min={1} value={item.quantity}
-                  onChange={(e) => handleBottleChange(idx, 'quantity', e.target.value)} required />
-              </label>
-              <label>Price:
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={item.price}
-                  onChange={(e) => handleBottleChange(idx, 'price', e.target.value)}
-                  required
-                />
-              </label>
-              <button type="button" className='delete-button' onClick={() => handleDeleteBottle(idx)}>🗑</button>
-              {idx === bottles.length - 1 && (
-                <button type="button" className='add-button'onClick={handleAddBottle}>➕</button>
-              )}
-            </div>
-          ))}
-
-          <div className="total-line">
-            <h3>Total: Rs. {calculateTotal().toFixed(2)}</h3>
+      <div style={{ display: 'flex', gap: '2rem' }}>
+        {/* Left Side - Invoice Form */}
+        <div className="card billing-card" style={{ flex: 3 }}>
+          <div style={{textAlign: 'center', fontSize: 'x-large', fontWeight: 'bold', color: '#0d4483', fontFamily: "'Times New Roman', Times, serif"}}>
+            <h1>Invoice</h1>
           </div>
 
-          <div className="payment-row">
+          <Box sx={{ width: '100%', bgcolor: 'background.paper', mb: 2 }}>
+            <Tabs value={tabIndex} onChange={handleTabChange} centered>
+              <Tab label="Registered Customer" />
+              <Tab label="Guest Customer" />
+            </Tabs>
+          </Box>
+
+          <form onSubmit={handleSubmit}>
+            {tabIndex === 0 && (
+              <div className="customer-search">
+                <input
+                  type="text"
+                  placeholder="Type customer name"
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setSelectedCustomer(null);
+                  }}
+                />
+                {customerSearch && !selectedCustomer && (
+                  <ul className="customer-list">
+                    {filteredCustomers.map((c) => (
+                      <li key={c._id} onClick={() => {
+                        setSelectedCustomer(c._id);
+                        setCustomerSearch(c.customername);
+                      }}>
+                        {c.customername} ({c.phone})
+                      </li>
+                    ))}
+                    {filteredCustomers.length === 0 && <li>No matches found</li>}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {tabIndex === 1 && (
+              <div className="guest-input-row">
+                <div className="guest-input">
+                  <label>
+                    Name:
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="guest-input">
+                  <label>
+                    Phone:
+                    <input
+                      type="text"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Brand Selector - Updated to match other dropdown styles and centered */}
+            <div className="bottle-row" style={{ justifyContent: 'center' }}>
+              <select 
+                value={brand} 
+                onChange={(e) => setBrand(e.target.value)}
+                required
+               
+              >
+                <option value="">Select Brand</option>
+                {uniqueBrands.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <h3>Bottle Details</h3>
+            {bottles.map((item, idx) => (
+              <div key={idx} className="bottle-row">
+                <select 
+                  value={item.type} 
+                  onChange={(e) => handleBottleChange(idx, 'type', e.target.value)} 
+                  required
+                  disabled={!brand}
+                >
+                  <option value="">Select Bottle Size</option>
+                  {bottleSizes.map(size => <option key={size} value={size}>{size} (Stock: {
+                    stockData.find(s => s.brand === brand && s.bottleSize === size)?.quantity || 0
+                  })</option>)}
+                </select>
+                <label>Qty:
+                  <input type="number" min={1} value={item.quantity}
+                    onChange={(e) => handleBottleChange(idx, 'quantity', e.target.value)} required />
+                </label>
+                <label>Price:
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={item.price}
+                    onChange={(e) => handleBottleChange(idx, 'price', e.target.value)}
+                    required
+                  />
+                </label>
+                <button type="button" className='delete-button' onClick={() => handleDeleteBottle(idx)}>🗑</button>
+                {idx === bottles.length - 1 && (
+                  <button type="button" className='add-button' onClick={handleAddBottle}>➕</button>
+                )}
+              </div>
+            ))}
+
+            <div className="total-line">
+              <h3>Total: Rs. {calculateTotal().toFixed(2)}</h3>
+            </div>
+
+           <div className="payment-row">
             <div className="payment-method">
               <label>
                 Payment Method:
@@ -390,41 +472,117 @@ const Billing: React.FC = () => {
           <button type="submit" className="button-submit">Submit Bill</button>
         </form>
 
-        {success && (
-          <>
-            <InvoicePreview
-              ref={printRef}
-              customerName={customerName}
-              customerPhone={customerPhone}
-              paymentMethod={paymentMethod}
-              bottles={bottles}
-              date={new Date().toISOString().split('T')[0]}
-            />
-            <button onClick={handlePrint}>Print</button>
-          </>
-        )}
-
-        <style>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            #printable-bill, #printable-bill * {
-              visibility: visible;
-            }
-            #printable-bill {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              padding: 20px;
-            }
-          }
-        `}</style>
+          {success && (
+            <>
+              <InvoicePreview
+                ref={printRef}
+                customerName={customerName}
+                customerPhone={customerPhone}
+                paymentMethod={paymentMethod}
+                bottles={bottles}
+                date={new Date().toISOString().split('T')[0]}
+                bankName={paymentMethod === 'Cheque' ? bankName : undefined}
+                chequeStatus={paymentMethod === 'Cheque' ? chequeStatus : undefined}
+                creditLimit={paymentMethod === 'Credit' ? creditLimit : undefined}
+                dueDate={dueDate || undefined}
+              />
+              <button onClick={handlePrint}>Print</button>
+            </>
+          )}
+        </div>
+        
+        {/* Right Side - Stock Table */}
+        <div style={{ flex: 1, marginTop: '2rem' }}>
+          <h3>Current Stock</h3>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Brand</TableCell>
+                  <TableCell>Bottle Size</TableCell>
+                  <TableCell>Available Quantity</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {stockData.length > 0 ? (
+                  stockData.map((row, index) => (
+                    <TableRow key={`stock-${index}`}>
+                      <TableCell>{row.brand}</TableCell>
+                      <TableCell>{row.bottleSize}</TableCell>
+                      <TableCell>{row.quantity}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} align="center">
+                      No stock data available
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
       </div>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-bill, #printable-bill * {
+            visibility: visible;
+          }
+          #printable-bill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 20px;
+          }
+        }
+        
+        .bottle-row {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .guest-input-row {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .customer-search {
+          position: relative;
+          margin-bottom: 1rem;
+        }
+        .customer-list {
+          position: absolute;
+          background: white;
+          border: 1px solid #ccc;
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          max-height: 200px;
+          overflow-y: auto;
+          z-index: 10;
+          width: 100%;
+        }
+        .customer-list li {
+          padding: 8px;
+          cursor: pointer;
+        }
+        .customer-list li:hover {
+          background: #f0f0f0;
+        }
+        .brand-select {
+          margin-bottom: 1rem;
+        }
+      `}</style>
     </AdminLayout>
   );
 };
 
 export default Billing;
-
+   
