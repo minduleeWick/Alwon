@@ -8,15 +8,15 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 // ✅ Add a new customer
 const addCustomer = async (req, res) => {
   try {
-    const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
+    const { customername, phone, priceRates } = req.body;
 
     // Check for missing fields
-    if (!customername || idnumber || address || !phone || email || !type) {
+    if (!customername || !phone || !priceRates) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
     // Create and save the customer
-    const customer = new Customer({ customername, idnumber, address, phone, email, type, priceRates });
+    const customer = new Customer({ customername, phone, priceRates });
     await customer.save();
     res.status(201).json(customer);
   } catch (err) {
@@ -60,20 +60,20 @@ const deleteCustomer = async (req, res) => {
 // ✅ Edit/update a customer by ID
 const editCustomer = async (req, res) => {
   const { id } = req.params;
-  const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
+  const { customername, phone, type, priceRates } = req.body;
 
   if (!isValidObjectId(id)) {
     return res.status(400).json({ error: 'Invalid customer ID format.' });
   }
 
-  if (!customername || idnumber || address || !phone || email || !type) {
+  if (!customername || !phone || !type || !priceRates) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
   try {
     const updatedCustomer = await Customer.findByIdAndUpdate(
       id,
-      { customername, idnumber, address, phone, email, type, priceRates },
+      { customername, phone, type, priceRates },
       { new: true, runValidators: true }
     );
 
