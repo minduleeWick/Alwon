@@ -34,7 +34,7 @@ const Users: React.FC = () => {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [users]);
 
   const handleSubmit = async () => {
     try {

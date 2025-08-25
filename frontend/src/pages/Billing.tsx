@@ -50,6 +50,8 @@ const Billing: React.FC = () => {
   const [dueDate] = useState('');
   const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
 
+    const calculateTotal = () =>
+    bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
@@ -160,8 +162,7 @@ const Billing: React.FC = () => {
     setBottles(updated);
   };
 
-  const calculateTotal = () =>
-    bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
