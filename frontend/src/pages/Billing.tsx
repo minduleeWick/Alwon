@@ -84,7 +84,7 @@ const calculateTotal = useCallback(() =>
     } else {
       setCreditAmount(0);
     }
-  }, [paymentMethod, paidAmount, bottles]);
+  }, [paymentMethod, paidAmount, bottles, calculateTotal]);
 
   // When selectedCustomer or bottles change, auto-fill bottle prices for registered customers
   useEffect(() => {
