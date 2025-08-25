@@ -34,7 +34,7 @@ const loadUsers = useCallback(async () => {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const handleSubmit = async () => {
     try {
