@@ -26,7 +26,6 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InventoryForm from '../components/InventoryForm';
-import EditInventoryForm from '../components/EditInventoryForm';
 import axios from 'axios';
 
 interface BottleEntry {
