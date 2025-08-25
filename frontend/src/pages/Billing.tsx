@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect,useCallback } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/theme.css';
 import { 
@@ -50,8 +50,10 @@ const Billing: React.FC = () => {
   const [dueDate] = useState('');
   const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
 
-    const calculateTotal = () =>
-    bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
+const calculateTotal = useCallback(() =>
+  bottles.reduce((sum, b) => sum + b.quantity * b.price, 0),
+  [bottles]
+);
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {

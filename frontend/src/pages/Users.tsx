@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import {
   Table, TableHead, TableRow, TableCell, TableBody,
@@ -25,16 +25,16 @@ const Users: React.FC = () => {
 
   const token = localStorage.getItem('token');
 
-  const loadUsers = async () => {
-    const res = await axios.get('/api/users', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setUsers(res.data);
-  };
+const loadUsers = useCallback(async () => {
+  const res = await axios.get('/api/users', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  setUsers(res.data);
+}, [token]);
 
   useEffect(() => {
     loadUsers();
-  }, [users]);
+  }, []);
 
   const handleSubmit = async () => {
     try {
