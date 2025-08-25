@@ -24,10 +24,6 @@ interface Customer {
   createdAt: string;
   priceRates?: { bottleType: string; price: number }[];
   bottlePrices: { [key: string]: number };
-  idnumber?: string;
-  address?: string;
-  email?: string;
-  type?: string;
 }
 
 // Helper to convert backend priceRates to frontend bottlePrices
@@ -150,10 +146,7 @@ const Customers: React.FC = () => {
         balance: formData.balance,
         createdAt: formData.createdAt,
         priceRates: bottlePricesToPriceRates(formData.bottlePrices),
-        idnumber: customer.idnumber || 'AUTO',
-        address: customer.address || 'N/A',
-        email: customer.email || `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`,
-        type: customer.type || 'regular',
+
       };
       try {
         const res = await axios.put(`${apiBase}/${customer._id}`, payload);
