@@ -1,4 +1,3 @@
-// src/pages/BillHistory.tsx
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import {
@@ -15,6 +14,7 @@ interface Bottle {
   type: string;
   quantity: number;
   price: number;
+  brand?: string; // Added brand field
 }
 
 interface Bill {
@@ -188,6 +188,7 @@ const BillHistory: React.FC = () => {
                   <TableCell align="center"><strong>Invoice No</strong></TableCell>
                   <TableCell align="center"><strong>Date</strong></TableCell>
                   <TableCell align="center"><strong>Customer Name</strong></TableCell>
+                  <TableCell align="center"><strong>Brand</strong></TableCell>
                   <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Order Details</strong></TableCell>
                   <TableCell align="center"><strong>Total</strong></TableCell>
                   <TableCell align="center"><strong>Payment Type</strong></TableCell>
@@ -195,6 +196,7 @@ const BillHistory: React.FC = () => {
                   <TableCell align="center"><strong>Actions</strong></TableCell>
                 </TableRow>
                 <TableRow>
+                  <TableCell />
                   <TableCell />
                   <TableCell />
                   <TableCell />
@@ -212,11 +214,14 @@ const BillHistory: React.FC = () => {
                   const bottleMap = Object.fromEntries(bill.bottles.map(b => [b.type, b.quantity]));
                   const computedStatus = getStatus(bill);
                   const type = bill.paymentType?.toLowerCase();
+                  // Get the brand from the first bottle or use the main brand
+                  const brand = bill.bottles && bill.bottles.length > 0 ? bill.bottles[0].brand || '' : '';
                   return (
                     <TableRow key={index}>
                       <TableCell align="center">{bill.invoiceNo}</TableCell>
                       <TableCell align="center">{bill.date}</TableCell>
                       <TableCell align="center">{bill.customerName}</TableCell>
+                      <TableCell align="center">{brand}</TableCell>
                       {bottleTypes.map(type => (
                         <TableCell key={type} align="center">{bottleMap[type] || 0}</TableCell>
                       ))}

@@ -9,6 +9,7 @@ router.put('/:id', inventoryController.editInventoryItem);
 router.delete('/:id', inventoryController.deleteInventoryItem);
 router.get('/search', inventoryController.searchInventoryItems);
 router.put('/update-by-code', inventoryController.updateInventoryByItemCode); // ✅ correct for bulk
+router.get('/stock', inventoryController.getStockInfo); // New route for stock info
 
 
 module.exports = router;

@@ -15,6 +15,7 @@ const bottleSchema = new mongoose.Schema({
 
 const inventorySchema = new mongoose.Schema({
   date: { type: String, required: true },
+  brand: { type: String, required: true, trim: true },
   bottles: [bottleSchema],
 });
 

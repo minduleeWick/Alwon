@@ -19,6 +19,7 @@ const issueBill = async (req, res) => {
       quantity,
       itemCode,
       itemName,
+      brand, // Added brand field
       amount,
       payment,
       deupayment,
@@ -32,8 +33,8 @@ const issueBill = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!customerType || !itemCode || !itemName || !quantity || !amount || !paymentMethod) {
-      return res.status(400).json({ error: 'All required fields must be provided.' });
+    if (!customerType || !itemCode || !itemName || !quantity || !amount || !paymentMethod || !brand) {
+      return res.status(400).json({ error: 'All required fields must be provided including brand.' });
     }
 
     // Validate customerType
@@ -70,19 +71,32 @@ const issueBill = async (req, res) => {
       return res.status(400).json({ error: 'At least one bottle entry is required.' });
     }
 
+    // Check if each bottle has a brand
+    for (const bottle of bottles) {
+      if (!bottle.brand) {
+        bottle.brand = brand; // Use the main brand if bottle-specific brand is not provided
+      }
+    }
+
     // For each bottle type in the request, we need to check total available quantity across all inventory entries
     for (const bottle of bottles) {
-      // Find all inventory documents containing this bottle type
-      const inventoryDocs = await Inventory.find({ 'bottles.itemCode': bottle.type });
+      // Find all inventory documents containing this bottle type AND brand
+      const inventoryDocs = await Inventory.find({ 
+        brand: bottle.brand,
+        'bottles.itemCode': bottle.type 
+      });
+      
       if (!inventoryDocs || inventoryDocs.length === 0) {
-        return res.status(400).json({ error: `No inventory found for bottle type: ${bottle.type}` });
+        return res.status(400).json({ 
+          error: `No inventory found for bottle type: ${bottle.type} of brand: ${bottle.brand}` 
+        });
       }
 
-      // Calculate total available quantity across all inventory entries
+      // Calculate total available quantity across all inventory entries for this brand
       let totalAvailable = 0;
       const bottleInventories = [];
       
-      // Gather all inventory entries for this bottle type
+      // Gather all inventory entries for this bottle type and brand
       for (const doc of inventoryDocs) {
         const invBottles = doc.bottles.filter(b => b.itemCode === bottle.type);
         for (const invBottle of invBottles) {
@@ -98,7 +112,7 @@ const issueBill = async (req, res) => {
       // Check if total stock is sufficient
       if (totalAvailable < bottle.quantity) {
         return res.status(400).json({
-          error: `Insufficient stock for bottle type: ${bottle.type}. Available: ${totalAvailable}, Requested: ${bottle.quantity}`
+          error: `Insufficient stock for ${bottle.brand} bottle type: ${bottle.type}. Available: ${totalAvailable}, Requested: ${bottle.quantity}`
         });
       }
 
@@ -106,7 +120,6 @@ const issueBill = async (req, res) => {
       let remainingToDeduct = bottle.quantity;
       
       // Sort bottle inventories by any criteria you prefer (FIFO, LIFO, etc.)
-      // Here we'll use FIFO approach (oldest inventory first)
       bottleInventories.sort((a, b) => a.bottle.createdAt - b.bottle.createdAt);
       
       for (const inv of bottleInventories) {
@@ -130,7 +143,9 @@ const issueBill = async (req, res) => {
         );
         
         if (updateResult.modifiedCount === 0) {
-          return res.status(400).json({ error: `Failed to update inventory for bottle type: ${bottle.type}` });
+          return res.status(400).json({ 
+            error: `Failed to update inventory for ${bottle.brand} bottle type: ${bottle.type}` 
+          });
         }
       }
     }
@@ -162,6 +177,7 @@ const issueBill = async (req, res) => {
       quantity,
       itemCode,
       itemName,
+      brand, // Add brand to payment record
       amount,
       payment,
       deupayment,
@@ -169,7 +185,7 @@ const issueBill = async (req, res) => {
       paymentMethod,
       status: computedStatus,
       paymentDate: new Date(),
-      bottles,
+      bottles, // Now bottles include brand information
       invoiceNo: generateUniqueInvoiceId(),
       // Only set customerName and customerPhone for registered customers
       customerName: customerType === 'registered' ? customerName : undefined,

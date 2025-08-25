@@ -21,6 +21,7 @@ interface BottleEntry {
 
 interface InventoryItem {
   _id: string;
+  brand: string;
   date: string;
   bottles: BottleEntry[];
 }
@@ -34,6 +35,7 @@ interface Props {
 
 const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEditMode }) => {
   const [date, setDate] = useState(initialData?.date || '');
+  const [brand, setBrand] = useState(initialData?.brand || '');
   const [bottles, setBottles] = useState<BottleEntry[]>(
     initialData?.bottles || [
       {
@@ -131,6 +133,7 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
           soldquantity: bottle.soldquantity || 0,
           profitearn: bottle.profitearn || 0,
         })),
+        brand: brand || 'Unknown Brand',
       },
     ];
 
@@ -149,7 +152,20 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
         margin="normal"
         required
       />
-
+      <TextField
+        fullWidth
+        select
+        label="Brand"
+        value={brand}
+        onChange={(e) => setBrand(e.target.value)}
+        margin="normal"
+        required
+      >
+        <MenuItem value="Brand A">Brand A</MenuItem>
+        <MenuItem value="Brand B">Brand B</MenuItem>
+        <MenuItem value="Brand C">Brand C</MenuItem>
+        <MenuItem value="Brand D">Brand D</MenuItem>
+      </TextField>
       {bottles.map((bottle, index) => (
         <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
           <TextField
@@ -190,6 +206,7 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
           variant="contained"
           disabled={
             !date ||
+            !brand || // Added brand validation
             bottles.some(
               (bottle) =>
                 !bottle.itemCode || bottle.itemCode.trim() === '' || bottle.quantity <= 0 || isNaN(bottle.quantity)

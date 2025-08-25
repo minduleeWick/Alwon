@@ -32,6 +32,11 @@ const paymentSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    brand: {
+        type: String,
+        required: true,
+        trim: true
+    },
     amount: {
         type: Number,
         required: true,
@@ -86,7 +91,8 @@ const paymentSchema = new mongoose.Schema({
         {
             type: { type: String, required: true }, // This should match Inventory.bottles.itemCode
             quantity: { type: Number, required: true, min: 1 },
-            price: { type: Number, required: true, min: 0 }
+            price: { type: Number, required: true, min: 0 },
+            brand: { type: String, required: true }
         }
     ],
     invoiceNo: {
