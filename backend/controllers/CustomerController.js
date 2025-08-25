@@ -11,7 +11,7 @@ const addCustomer = async (req, res) => {
     const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
 
     // Check for missing fields
-    if (!customername || !idnumber || !address || !phone || !email || !type) {
+    if (!customername || idnumber || address || !phone || email || !type) {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -66,7 +66,7 @@ const editCustomer = async (req, res) => {
     return res.status(400).json({ error: 'Invalid customer ID format.' });
   }
 
-  if (!customername || !idnumber || !address || !phone || !email || !type) {
+  if (!customername || idnumber || address || !phone || email || !type) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 

@@ -7,10 +7,10 @@ const priceRateSchema = new mongoose.Schema({
 
 const customerSchema = new mongoose.Schema({
   customername: { type: String, required: true, unique: true },
-  idnumber: { type: String, required: true, unique: true },
-  address: { type: String, required: true },
+  idnumber: { type: String},
+  address: { type: String  },
   phone: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String },
   type: { type: String, required: true },
   priceRates: [priceRateSchema] // <-- Add this line
 }, { timestamps: true });

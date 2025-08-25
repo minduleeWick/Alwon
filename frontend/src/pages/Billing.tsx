@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect,useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from '../layouts/AdminLayout';
 import '../styles/theme.css';
 import { 
@@ -44,16 +44,12 @@ const Billing: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const [creditAmount, setCreditAmount] = useState(0);
   const [brand, setBrand] = useState('');
-  const [bankName] = useState('');
-  const [chequeStatus] = useState('Pending');
-  const [creditLimit] = useState(0);
-  const [dueDate] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [chequeStatus, setChequeStatus] = useState('Pending');
+  const [creditLimit, setCreditLimit] = useState(0);
+  const [dueDate, setDueDate] = useState('');
   const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
 
-const calculateTotal = useCallback(() =>
-  bottles.reduce((sum, b) => sum + b.quantity * b.price, 0),
-  [bottles]
-);
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
@@ -84,7 +80,7 @@ const calculateTotal = useCallback(() =>
     } else {
       setCreditAmount(0);
     }
-  }, [paymentMethod, paidAmount, bottles, calculateTotal]);
+  }, [paymentMethod, paidAmount, bottles]);
 
   // When selectedCustomer or bottles change, auto-fill bottle prices for registered customers
   useEffect(() => {
@@ -164,7 +160,8 @@ const calculateTotal = useCallback(() =>
     setBottles(updated);
   };
 
-
+  const calculateTotal = () =>
+    bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,12 +231,18 @@ const calculateTotal = useCallback(() =>
   const handlePrint = () => window.print();
 
   // Filter stock data based on selected brand
+  const filteredStockData = brand 
+    ? stockData.filter(item => item.brand === brand)
+    : stockData;
 
   // Get unique brands for stock display
   const uniqueBrands = React.useMemo(() => {
     const brands = new Set(stockData.map(item => item.brand));
     return Array.from(brands);
   }, [stockData]);
+
+  // Sort stockData by brand name alphabetically for display
+  const sortedStockData = [...stockData].sort((a, b) => a.brand.localeCompare(b.brand));
 
   return (
     <AdminLayout>
@@ -504,8 +507,8 @@ const calculateTotal = useCallback(() =>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {stockData.length > 0 ? (
-                  stockData.map((row, index) => (
+                {sortedStockData.length > 0 ? (
+                  sortedStockData.map((row, index) => (
                     <TableRow key={`stock-${index}`}>
                       <TableCell>{row.brand}</TableCell>
                       <TableCell>{row.bottleSize}</TableCell>
@@ -585,4 +588,3 @@ const calculateTotal = useCallback(() =>
 };
 
 export default Billing;
-   
