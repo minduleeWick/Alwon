@@ -53,7 +53,7 @@ const Billing: React.FC = () => {
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get(' http://localhost:5000/api/customers')
+      axios.get(' https://alwon.onrender.com/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
@@ -62,7 +62,7 @@ const Billing: React.FC = () => {
   // Fetch stock data from backend
   useEffect(() => {
     // Replace mock data with actual API call
-    axios.get('http://localhost:5000/api/inventory/stock')
+    axios.get('https://alwon.onrender.com/api/inventory/stock')
       .then(res => setStockData(res.data))
       .catch(err => {
         console.error("Error fetching stock data:", err);
@@ -208,12 +208,12 @@ const Billing: React.FC = () => {
     };
 
     try {
-      const response = await axios.post(' http://localhost:5000/api/payments/issue', billData);
+      const response = await axios.post(' https://alwon.onrender.com/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
       setSuccess(true);
       
       // Refresh stock data immediately after successful payment
-      axios.get('http://localhost:5000/api/inventory/stock')
+      axios.get('https://alwon.onrender.com/api/inventory/stock')
         .then(res => setStockData(res.data))
         .catch(err => {
           console.error("Error fetching updated stock data:", err);
