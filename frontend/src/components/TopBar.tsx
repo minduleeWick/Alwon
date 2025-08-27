@@ -7,12 +7,14 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import '../styles/topbar.css';
 import { ThemeContext } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  // Get username from localStorage, fallback to 'Admin User'
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [username] = useState(localStorage.getItem('username') || 'Admin User');
+  const navigate = useNavigate();
 
   // Settings state
   const [notifications, setNotifications] = useState(true);
@@ -34,9 +36,20 @@ const TopBar: React.FC = () => {
     setSettingsAnchorEl(null);
   };
 
-  // Profile dialog handlers
-  const handleProfileOpen = () => {
-    // setProfileOpen(true);
+  // Profile menu handlers
+  const handleProfileOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileAnchorEl(event.currentTarget);
+  };
+  const handleProfileClose = () => {
+    setProfileAnchorEl(null);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('token'); // if you store JWT
+    setProfileAnchorEl(null);
+    navigate('/'); // redirect to login page
   };
 
   // Settings change handlers
@@ -148,6 +161,14 @@ const TopBar: React.FC = () => {
         >
           {username}
         </Typography>
+        <Menu
+          anchorEl={profileAnchorEl}
+          open={Boolean(profileAnchorEl)}
+          onClose={handleProfileClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <MenuItem onClick={handleLogout}>Log Out</MenuItem>
+        </Menu>
       </Box>
       {/* Profile Edit Dialog */}
       {/* ...existing profile dialog code... */}
