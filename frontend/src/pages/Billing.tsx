@@ -498,9 +498,15 @@ const Billing: React.FC = () => {
                   disabled={!brand}
                 >
                   <option value="">Select Bottle Size</option>
-                  {bottleSizes.map(size => <option key={size} value={size}>{size} (Stock: {
-                    stockData.find(s => s.brand === brand && s.bottleSize === size)?.quantity || 0
-                  })</option>)}
+                  {bottleSizes.map(size => {
+                    const stockQty = stockData.find(s => s.brand === brand && s.bottleSize === size)?.quantity ?? 0;
+                    const outOfStock = stockQty <= 0;
+                    return (
+                      <option key={size} value={size} disabled={outOfStock}>
+                        {size} (Stock: {stockQty})
+                      </option>
+                    );
+                  })}
                 </select>
                 <label>Qty:
                   <input type="number" min={1} value={item.quantity}
