@@ -208,6 +208,15 @@ const Billing: React.FC = () => {
     setDueDate('');
   };
 
+  // Helper: build priceRates array from bottles (unique by type)
+  const buildPriceRatesFromBottles = (bottlesList: { type: string; price: number }[]) => {
+    const map: Record<string, number> = {};
+    bottlesList.forEach(b => {
+      if (b.type) map[b.type] = Number(b.price) || 0;
+    });
+    return Object.entries(map).map(([bottleType, price]) => ({ bottleType, price }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -221,21 +230,53 @@ const Billing: React.FC = () => {
       return;
     }
 
+    // If guest, first create a regular customer, then continue with payment using returned customerId
+    let customerIdForBill = tabIndex === 0 ? selectedCustomer : null;
+    if (tabIndex === 1) {
+      try {
+        // build priceRates from bottles so guest is saved with the used prices
+        const priceRatesForGuest = buildPriceRatesFromBottles(bottles);
+        const createPayload = {
+          customername: guestName,
+          phone: guestPhone,
+          type: 'regular',
+          priceRates: priceRatesForGuest
+        };
+        const createRes = await axios.post('http://localhost:5000/api/customers/add', createPayload);
+        const newCustomer = createRes.data;
+        if (!newCustomer || !newCustomer._id) {
+          throw new Error('Failed to create customer');
+        }
+        customerIdForBill = newCustomer._id;
+        // add newly created customer to local customers list so UI updates immediately
+        setCustomers(prev => {
+          // avoid duplicates
+          const exists = prev.some(c => c._id === newCustomer._id);
+          if (exists) return prev;
+          return [...prev, {
+            _id: newCustomer._id,
+            customername: newCustomer.customername || guestName,
+            phone: newCustomer.phone || guestPhone,
+            priceRates: newCustomer.priceRates || []
+          }];
+        });
+      } catch (err: any) {
+        alert('Failed to create customer: ' + (err?.response?.data?.error || err.message || 'Unknown error'));
+        return; // abort payment if customer creation fails
+      }
+    }
+
     const total = calculateTotal();
 
     const billData = {
-      customerId: tabIndex === 0 ? selectedCustomer : undefined,
-      customerType: tabIndex === 0 ? 'registered' : 'guest',
-      guestInfo: tabIndex === 1 ? { name: guestName, phone: guestPhone } : undefined,
+      customerId: customerIdForBill,
+      customerType: tabIndex === 0 ? 'registered' : 'registered', // guest becomes registered after creation
+      guestInfo: tabIndex === 1 ? undefined : undefined, // guest info is not needed once customer created
       quantity: bottles.reduce((sum, b) => sum + b.quantity, 0),
       itemCode: bottles[0].type,
       itemName: bottles.map(b => b.type).join(', '),
-      brand: brand, // Add brand information
+      brand: brand,
       amount: total,
-      // Payment / due handling:
-      // - Credit: partial payment allowed (paidAmount), remaining = creditAmount
-      // - Cash: fully paid immediately
-      // - Cheque: treat as unpaid until cleared (payment = 0, due = total)
       payment: paymentMethod === 'credit' ? paidAmount
                : paymentMethod === 'cash' ? total
                : 0,
@@ -250,19 +291,51 @@ const Billing: React.FC = () => {
         chequeDate,
         bankName,
         chequeStatus,
-        // Removed remainingAmount field
       }),
       bottles: bottles.map(b => ({
         type: b.type,
         quantity: b.quantity,
         price: b.price,
-        brand: brand // Add brand to each bottle
+        brand: brand
       }))
     };
 
     try {
       const response = await axios.post(' http://localhost:5000/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
+
+      // --- NEW: persist/merge priceRates for this customer so future invoices use updated prices ---
+      if (customerIdForBill) {
+        try {
+          // build priceRates from the submitted bill (use billData.bottles which contains the submitted prices)
+          const newRates = buildPriceRatesFromBottles(billData.bottles);
+          // merge with existing customer rates (overwrite existing types with newRates)
+          const existingCustomer = customers.find(c => c._id === (selectedCustomer || customerIdForBill));
+          const mergedMap: Record<string, number> = {};
+          (existingCustomer?.priceRates || []).forEach((r: any) => {
+            mergedMap[r.bottleType] = r.price;
+          });
+          newRates.forEach((r: any) => {
+            mergedMap[r.bottleType] = r.price; // overwrite or add
+          });
+          const mergedPriceRates = Object.entries(mergedMap).map(([bottleType, price]) => ({ bottleType, price }));
+
+          // send update to backend (edit customer)
+          await axios.put(`http://localhost:5000/api/customers/${customerIdForBill}`, {
+            customername: existingCustomer?.customername || (tabIndex === 1 ? guestName : ''),
+            phone: existingCustomer?.phone || (tabIndex === 1 ? guestPhone : ''),
+            priceRates: mergedPriceRates,
+            type: 'regular'
+          });
+
+          // update local customers state to reflect new rates immediately
+          setCustomers(prev => prev.map(c => c._id === customerIdForBill ? { ...c, priceRates: mergedPriceRates } : c));
+        } catch (err) {
+          console.error('Failed to update customer priceRates after billing:', err);
+        }
+      }
+      // --- END NEW ---
+
       // Keep a snapshot of the bill for printing, then clear the form
       setLastBill({
         customerName: tabIndex === 0 ? customers.find(c => c._id === selectedCustomer)?.customername || '' : guestName,
@@ -275,7 +348,8 @@ const Billing: React.FC = () => {
         creditLimit: paymentMethod === 'credit' ? creditLimit : undefined,
         dueDate: dueDate || undefined
       });
-      // reset the form inputs
+
+      // reset the form inputs (do this after merging/updating customer rates)
       clearFormFields();
       // show preview (uses lastBill)
       setSuccess(true);
@@ -286,10 +360,11 @@ const Billing: React.FC = () => {
         .catch(err => {
           console.error("Error fetching updated stock data:", err);
         });
+
       // Refresh remaining balance after creating bill (for registered customer)
-      if (tabIndex === 0 && selectedCustomer) {
+      if ((tabIndex === 0 && selectedCustomer) || (tabIndex === 1 && customerIdForBill)) {
         try {
-          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer } });
+          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer || customerIdForBill } });
           const payments = Array.isArray(res.data) ? res.data : [];
           const remaining = payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
           setRemainingBalance(remaining);

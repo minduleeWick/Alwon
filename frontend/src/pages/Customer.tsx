@@ -14,7 +14,7 @@ import axios from 'axios';
 const apiBase = 'http://localhost:5000/api/customers';
 const paymentsApi = 'http://localhost:5000/api/payments/history'; // added
 
-const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
+const bottleTypes = ['500ml', '1L', '1.5L', '5L', '20L'];
 
 interface Customer {
   name: any;
@@ -52,7 +52,6 @@ const Customers: React.FC = () => {
   const [formData, setFormData] = useState<Customer>({
     name: '',
     phone: '',
-    remainingAmount: 0,
     bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
   });
   const [page, setPage] = useState(0);
@@ -127,7 +126,6 @@ const Customers: React.FC = () => {
     const payload = {
       customername: formData.name,
       phone: formData.phone,
-      remainingAmount: formData.remainingAmount || 0,
       priceRates: bottlePricesToPriceRates(formData.bottlePrices),
       type: 'regular'
     };
@@ -159,7 +157,6 @@ const Customers: React.FC = () => {
       const payload = {
         customername: formData.name,
         phone: formData.phone,
-        remainingAmount: formData.remainingAmount || 0,
         priceRates: bottlePricesToPriceRates(formData.bottlePrices),
         type: 'regular'
       };
@@ -189,7 +186,6 @@ const Customers: React.FC = () => {
     setFormData({
       name: '',
       phone: '',
-      remainingAmount: 0,
       bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
@@ -201,7 +197,6 @@ const Customers: React.FC = () => {
     setFormData({
       name: c.name || c.customername || '',
       phone: c.phone || '',
-      remainingAmount: c.remainingAmount || 0,
       bottlePrices: c.bottlePrices || Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
     setEditOpen(true);
@@ -294,20 +289,9 @@ const Customers: React.FC = () => {
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
               fullWidth
             />
-            <TextField
-              label="Remaining Amount"
-              type="number"
-              value={formData.remainingAmount ?? ''}
-              onChange={e => setFormData({ ...formData, remainingAmount: +e.target.value || 0 })}
-              fullWidth
-              InputProps={{
-                startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
-              }}
-            />
             
             {/* Bottle Prices Section */}
             <div style={{ marginTop: '20px', padding: '16px', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-             
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 {bottleTypes.map(type => (
                   <TextField
@@ -353,16 +337,6 @@ const Customers: React.FC = () => {
               value={formData.phone} 
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
               fullWidth
-            />
-            <TextField
-              label="Remaining Amount"
-              type="number"
-              value={formData.remainingAmount ?? ''}
-              onChange={e => setFormData({ ...formData, remainingAmount: +e.target.value || 0 })}
-              fullWidth
-              InputProps={{
-                startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
-              }}
             />
             
             {/* Bottle Prices Section */}
@@ -414,3 +388,4 @@ const Customers: React.FC = () => {
 };
 
 export default Customers;
+
