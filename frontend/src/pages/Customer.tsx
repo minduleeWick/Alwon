@@ -12,6 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 
 const apiBase = 'http://localhost:5000/api/customers';
+const paymentsApi = 'http://localhost:5000/api/payments/history'; // added
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
@@ -20,6 +21,7 @@ interface Customer {
   _id?: string;
   customername?: string;
   phone: string;
+  remainingAmount?: number;
   priceRates?: { bottleType: string; price: number }[];
   bottlePrices: { [key: string]: number };
 }
@@ -50,6 +52,7 @@ const Customers: React.FC = () => {
   const [formData, setFormData] = useState<Customer>({
     name: '',
     phone: '',
+    remainingAmount: 0,
     bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
   });
   const [page, setPage] = useState(0);
@@ -80,22 +83,43 @@ const Customers: React.FC = () => {
       }
     }
   };
-  // Fetch customers from backend
+
+  // Helper to compute total remaining for a customer by summing payment.remainingAmount (fallback to deupayment)
+  const computeRemainingFor = async (customerId?: string) => {
+    if (!customerId) return 0;
+    try {
+      const res = await axios.get(paymentsApi, { params: { customerId } });
+      const payments = Array.isArray(res.data) ? res.data : [];
+      return payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  // Fetch customers from backend and enrich with computed remaining balance
   React.useEffect(() => {
-    axios.get(apiBase)
-      .then(res => {
-        setCustomers(
-          res.data.map((c: any) => ({
-            ...c,
-            name: c.customername,
-            bottlePrices: priceRatesToBottlePrices(c.priceRates || []),
-            phone: c.phone || '',
-          }))
-        );
-      })
-      .catch(err => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await axios.get(apiBase);
+        const raw = res.data || [];
+        const mapped = raw.map((c: any) => ({
+          ...c,
+          name: c.customername,
+          remainingAmount: c.remainingAmount || 0,
+          bottlePrices: priceRatesToBottlePrices(c.priceRates || []),
+          phone: c.phone || '',
+        }));
+        // compute remaining balances in parallel
+        const enriched = await Promise.all(mapped.map(async (c: any) => {
+          const remaining = await computeRemainingFor(c._id);
+          return { ...c, remainingAmount: remaining };
+        }));
+        setCustomers(enriched);
+      } catch (err) {
         // handle error
-      });
+      }
+    };
+    fetchCustomers();
   }, []);
 
   // Add customer
@@ -103,16 +127,20 @@ const Customers: React.FC = () => {
     const payload = {
       customername: formData.name,
       phone: formData.phone,
+      remainingAmount: formData.remainingAmount || 0,
       priceRates: bottlePricesToPriceRates(formData.bottlePrices),
       type: 'regular'
     };
     try {
       const res = await axios.post(`${apiBase}/add`, payload);
+      // compute remaining from payments API (in case there are payment records)
+      const remaining = await computeRemainingFor(res.data._id);
       setCustomers([
         ...customers,
         {
           ...res.data,
           name: res.data.customername,
+          remainingAmount: remaining,
           bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
           phone: res.data.phone || ''
         },
@@ -131,15 +159,19 @@ const Customers: React.FC = () => {
       const payload = {
         customername: formData.name,
         phone: formData.phone,
+        remainingAmount: formData.remainingAmount || 0,
         priceRates: bottlePricesToPriceRates(formData.bottlePrices),
         type: 'regular'
       };
       try {
         const res = await axios.put(`${apiBase}/${customer._id}`, payload);
+        // recompute remaining after update
+        const remaining = await computeRemainingFor(res.data._id);
         const updated = [...customers];
         updated[currentEditIndex] = {
           ...res.data,
           name: res.data.customername,
+          remainingAmount: remaining,
           bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
           phone: res.data.phone || ''
         };
@@ -157,6 +189,7 @@ const Customers: React.FC = () => {
     setFormData({
       name: '',
       phone: '',
+      remainingAmount: 0,
       bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
@@ -168,6 +201,7 @@ const Customers: React.FC = () => {
     setFormData({
       name: c.name || c.customername || '',
       phone: c.phone || '',
+      remainingAmount: c.remainingAmount || 0,
       bottlePrices: c.bottlePrices || Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
     setEditOpen(true);
@@ -190,10 +224,12 @@ const Customers: React.FC = () => {
                 <TableRow>
                   <TableCell align="center"><strong>Customer Name</strong></TableCell>
                   <TableCell align="center"><strong>Phone</strong></TableCell>
+                  <TableCell align="center"><strong>Remaining Balance(Rs)</strong></TableCell>
                   <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Prices (Rs)</strong></TableCell>
                   <TableCell align="center"><strong>Actions</strong></TableCell>
                 </TableRow>
                 <TableRow>
+                  <TableCell />
                   <TableCell />
                   <TableCell />
                   {bottleTypes.map(type => (
@@ -209,6 +245,7 @@ const Customers: React.FC = () => {
                     <TableRow key={index}>
                       <TableCell align="center">{customer.name}</TableCell>
                       <TableCell align="center">{customer.phone}</TableCell>
+                      <TableCell align="center">Rs. {customer.remainingAmount || 0}</TableCell>
                       {bottleTypes.map(type => (
                         <TableCell key={type} align="center">Rs. {customer.bottlePrices[type] || 0}</TableCell>
                       ))}
@@ -256,6 +293,16 @@ const Customers: React.FC = () => {
               value={formData.phone} 
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
               fullWidth
+            />
+            <TextField
+              label="Remaining Amount"
+              type="number"
+              value={formData.remainingAmount ?? ''}
+              onChange={e => setFormData({ ...formData, remainingAmount: +e.target.value || 0 })}
+              fullWidth
+              InputProps={{
+                startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
+              }}
             />
             
             {/* Bottle Prices Section */}
@@ -306,6 +353,16 @@ const Customers: React.FC = () => {
               value={formData.phone} 
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
               fullWidth
+            />
+            <TextField
+              label="Remaining Amount"
+              type="number"
+              value={formData.remainingAmount ?? ''}
+              onChange={e => setFormData({ ...formData, remainingAmount: +e.target.value || 0 })}
+              fullWidth
+              InputProps={{
+                startAdornment: <span style={{ marginRight: '4px', color: '#666' }}>Rs.</span>
+              }}
             />
             
             {/* Bottle Prices Section */}

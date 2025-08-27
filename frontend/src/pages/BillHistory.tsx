@@ -45,7 +45,7 @@ const BillHistory: React.FC = () => {
 
   const fetchBills = async () => {
     try {
-      const response = await axios.get('https://alwon.onrender.com/api/payments/history');
+      const response = await axios.get('http://localhost:5000/api/payments/history');
       // Map backend data to Bill[]
       const mapped = response.data.map((item: any) => ({
         _id: item._id,
@@ -80,7 +80,7 @@ const BillHistory: React.FC = () => {
     
     try {
       // Update status in the database
-      await axios.put(`https://alwon.onrender.com/api/payments/update/${bill._id}`, {
+      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
         status: newStatus
       });
       
@@ -132,7 +132,7 @@ const BillHistory: React.FC = () => {
     
     try {
       // Send return data to the server
-      await axios.put(`https://alwon.onrender.com/api/payments/update/${bill._id}`, {
+      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
         returnedBottles
       });
       
@@ -191,6 +191,7 @@ const BillHistory: React.FC = () => {
                   <TableCell align="center"><strong>Brand</strong></TableCell>
                   <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Order Details</strong></TableCell>
                   <TableCell align="center"><strong>Total</strong></TableCell>
+                  <TableCell align="center"><strong>Remaining Balance</strong></TableCell>
                   <TableCell align="center"><strong>Payment Type</strong></TableCell>
                   <TableCell align="center"><strong>Status</strong></TableCell>
                   <TableCell align="center"><strong>Actions</strong></TableCell>
@@ -204,6 +205,7 @@ const BillHistory: React.FC = () => {
                     <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
                   ))}
                   <TableCell />
+                  <TableCell /> {/* placeholder for Remaining Balance */}
                   <TableCell />
                   <TableCell />
                   <TableCell />
@@ -216,6 +218,7 @@ const BillHistory: React.FC = () => {
                   const type = bill.paymentType?.toLowerCase();
                   // Get the brand from the first bottle or use the main brand
                   const brand = bill.bottles && bill.bottles.length > 0 ? bill.bottles[0].brand || '' : '';
+                  const remaining = bill.remainingAmount ?? (bill.total - (bill.paidAmount ?? 0));
                   return (
                     <TableRow key={index}>
                       <TableCell align="center">{bill.invoiceNo}</TableCell>
@@ -226,18 +229,12 @@ const BillHistory: React.FC = () => {
                         <TableCell key={type} align="center">{bottleMap[type] || 0}</TableCell>
                       ))}
                       <TableCell align="center">Rs. {bill.total.toFixed(2)}</TableCell>
+                      <TableCell align="center">Rs. {remaining.toFixed(2)}</TableCell>
                       <TableCell align="center">{bill.paymentType}</TableCell>
                       <TableCell align="center">
                         {type === 'credit' ? (
-                          <Select
-                            value={bill.status || computedStatus}
-                            onChange={(e) => handleStatusChange(index + page * rowsPerPage, e.target.value)}
-                            size="small"
-                          >
-                            <MenuItem value="paid">Paid</MenuItem>
-                            <MenuItem value="unpaid">Unpaid</MenuItem>
-                            <MenuItem value="partially paid">Partially Paid</MenuItem>
-                          </Select>
+                          // Changed: show status text for credit (no Select)
+                          computedStatus.charAt(0).toUpperCase() + computedStatus.slice(1)
                         ) : type === 'cheque' ? (
                           <Select
                             value={bill.status || computedStatus}

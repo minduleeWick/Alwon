@@ -35,8 +35,7 @@ const Billing: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [bottles, setBottles] = useState([{ type: '', quantity: 1, price: 0 }]);
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [remainingAmount, setRemainingAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [chequeNo, setChequeNo] = useState('');
   const [chequeDate, setChequeDate] = useState('');
   const [paidAmount, setPaidAmount] = useState(0);
@@ -48,21 +47,47 @@ const Billing: React.FC = () => {
   const [chequeStatus, setChequeStatus] = useState('Pending');
   const [creditLimit, setCreditLimit] = useState(0);
   const [dueDate, setDueDate] = useState('');
+  const [remainingBalance, setRemainingBalance] = useState(0);
   const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
+
+  // store last bill for preview/printing after clearing form
+  const [lastBill, setLastBill] = useState<any | null>(null);
+
+  const paymentsApi = 'http://localhost:5000/api/payments/history';
 
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get(' https://alwon.onrender.com/api/customers')
+      axios.get(' http://localhost:5000/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
   }, [tabIndex]);
 
+  // Fetch remaining balance when a registered customer is selected
+  useEffect(() => {
+    const fetchRemaining = async () => {
+      if (tabIndex === 0 && selectedCustomer) {
+        try {
+          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer } });
+          const payments = Array.isArray(res.data) ? res.data : [];
+          const remaining = payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
+          setRemainingBalance(remaining);
+        } catch (err) {
+          console.error('Error fetching remaining balance:', err);
+          setRemainingBalance(0);
+        }
+      } else {
+        setRemainingBalance(0);
+      }
+    };
+    fetchRemaining();
+  }, [selectedCustomer, tabIndex]);
+
   // Fetch stock data from backend
   useEffect(() => {
     // Replace mock data with actual API call
-    axios.get('https://alwon.onrender.com/api/inventory/stock')
+    axios.get('http://localhost:5000/api/inventory/stock')
       .then(res => setStockData(res.data))
       .catch(err => {
         console.error("Error fetching stock data:", err);
@@ -163,6 +188,26 @@ const Billing: React.FC = () => {
   const calculateTotal = () =>
     bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
+  // clear only the form fields (leave customers/stock/lastBill intact)
+  const clearFormFields = () => {
+    setTabIndex(0);
+    setCustomerSearch('');
+    setSelectedCustomer(null);
+    setGuestName('');
+    setGuestPhone('');
+    setBottles([{ type: '', quantity: 1, price: 0 }]);
+    setPaymentMethod('cash');
+    setChequeNo('');
+    setChequeDate('');
+    setPaidAmount(0);
+    setCreditAmount(0);
+    setBrand('');
+    setBankName('');
+    setChequeStatus('Pending');
+    setCreditLimit(0);
+    setDueDate('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -187,8 +232,16 @@ const Billing: React.FC = () => {
       itemName: bottles.map(b => b.type).join(', '),
       brand: brand, // Add brand information
       amount: total,
-      payment: paymentMethod === 'credit' ? paidAmount : total,
-      deupayment: paymentMethod === 'credit' ? creditAmount : 0,
+      // Payment / due handling:
+      // - Credit: partial payment allowed (paidAmount), remaining = creditAmount
+      // - Cash: fully paid immediately
+      // - Cheque: treat as unpaid until cleared (payment = 0, due = total)
+      payment: paymentMethod === 'credit' ? paidAmount
+               : paymentMethod === 'cash' ? total
+               : 0,
+      deupayment: paymentMethod === 'credit' ? creditAmount
+                  : paymentMethod === 'cheque' ? total
+                  : 0,
       creaditlimit: creditLimit,
       paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
       status: 'pending',
@@ -197,7 +250,7 @@ const Billing: React.FC = () => {
         chequeDate,
         bankName,
         chequeStatus,
-        remainingAmount
+        // Removed remainingAmount field
       }),
       bottles: bottles.map(b => ({
         type: b.type,
@@ -208,16 +261,42 @@ const Billing: React.FC = () => {
     };
 
     try {
-      const response = await axios.post(' https://alwon.onrender.com/api/payments/issue', billData);
+      const response = await axios.post(' http://localhost:5000/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
+      // Keep a snapshot of the bill for printing, then clear the form
+      setLastBill({
+        customerName: tabIndex === 0 ? customers.find(c => c._id === selectedCustomer)?.customername || '' : guestName,
+        customerPhone: tabIndex === 0 ? customers.find(c => c._id === selectedCustomer)?.phone || '' : guestPhone,
+        paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+        bottles: billData.bottles,
+        date: new Date().toISOString().split('T')[0],
+        bankName: paymentMethod === 'cheque' ? bankName : undefined,
+        chequeStatus: paymentMethod === 'cheque' ? chequeStatus : undefined,
+        creditLimit: paymentMethod === 'credit' ? creditLimit : undefined,
+        dueDate: dueDate || undefined
+      });
+      // reset the form inputs
+      clearFormFields();
+      // show preview (uses lastBill)
       setSuccess(true);
-      
+
       // Refresh stock data immediately after successful payment
-      axios.get('https://alwon.onrender.com/api/inventory/stock')
+      axios.get('http://localhost:5000/api/inventory/stock')
         .then(res => setStockData(res.data))
         .catch(err => {
           console.error("Error fetching updated stock data:", err);
         });
+      // Refresh remaining balance after creating bill (for registered customer)
+      if (tabIndex === 0 && selectedCustomer) {
+        try {
+          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer } });
+          const payments = Array.isArray(res.data) ? res.data : [];
+          const remaining = payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
+          setRemainingBalance(remaining);
+        } catch (err) {
+          console.error('Error refreshing remaining balance:', err);
+        }
+      }
     } catch (error: any) {
       if (error.response && error.response.data && error.response.data.error) {
         alert('Failed to save bill: ' + error.response.data.error);
@@ -287,6 +366,8 @@ const Billing: React.FC = () => {
                 )}
               </div>
             )}
+
+           
 
             {tabIndex === 1 && (
               <div className="guest-input-row">
@@ -383,20 +464,36 @@ const Billing: React.FC = () => {
               </label>
             </div>
 
-            {['cheque'].includes(paymentMethod) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-              <div className="remaining-amount">
+            {/* Remaining Balance for registered customers when paying by Cash (styled like other amount fields) */}
+            {tabIndex === 0 && selectedCustomer && paymentMethod === 'cash' && (
+              <div className="amount" style={{ marginTop: '1rem' }}>
                 <label>
-                  Remaining Amount:
+                  Remaining Balance:
                   <input
-                    type="number"
-                    min={0}
-                    value={remainingAmount}
-                    onChange={(e) => setRemainingAmount(Number(e.target.value))}
-                    required
+                    type="text"
+                    value={remainingBalance.toFixed(2)}
+                    readOnly
                   />
                 </label>
               </div>
+            )}
+
+            {['cheque'].includes(paymentMethod) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              
+              {/* Remaining Balance (for registered customers) - displayed above Cheque No */}
+              {tabIndex === 0 && selectedCustomer && (
+                <div className="amount">
+                  <label>
+                    Remaining Balance:
+                    <input
+                      type="text"
+                      value={remainingBalance.toFixed(2)}
+                      readOnly
+                    />
+                  </label>
+                </div>
+              )}
 
               <div className="cheque-no">
                 <label>
@@ -409,7 +506,7 @@ const Billing: React.FC = () => {
                   />
                 </label>
               </div>
-
+              
               <div className="amount">
                 <label>
                   Amount:
@@ -420,7 +517,7 @@ const Billing: React.FC = () => {
                   />
                 </label>
               </div>
-
+  
               <div className="date">
                 <label>
                   Date:
@@ -436,6 +533,19 @@ const Billing: React.FC = () => {
           )}
         {['credit'].includes(paymentMethod) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              {/* Remaining Balance (for registered customers) - same style as other amount fields */}
+              {tabIndex === 0 && selectedCustomer && (
+                <div className="amount">
+                  <label>
+                    Remaining Balance:
+                    <input
+                      type="text"
+                      value={remainingBalance.toFixed(2)}
+                      readOnly
+                    />
+                  </label>
+                </div>
+              )}
               <div className="amount">
                 <label>
                   Total Amount:
@@ -475,19 +585,19 @@ const Billing: React.FC = () => {
           <button type="submit" className="button-submit">Submit Bill</button>
         </form>
 
-          {success && (
+          {success && lastBill && (
             <>
               <InvoicePreview
                 ref={printRef}
-                customerName={customerName}
-                customerPhone={customerPhone}
-                paymentMethod={paymentMethod}
-                bottles={bottles}
-                date={new Date().toISOString().split('T')[0]}
-                bankName={paymentMethod === 'Cheque' ? bankName : undefined}
-                chequeStatus={paymentMethod === 'Cheque' ? chequeStatus : undefined}
-                creditLimit={paymentMethod === 'Credit' ? creditLimit : undefined}
-                dueDate={dueDate || undefined}
+                customerName={lastBill.customerName}
+                customerPhone={lastBill.customerPhone}
+                paymentMethod={lastBill.paymentMethod}
+                bottles={lastBill.bottles}
+                date={lastBill.date}
+                bankName={lastBill.bankName}
+                chequeStatus={lastBill.chequeStatus}
+                creditLimit={lastBill.creditLimit}
+                dueDate={lastBill.dueDate}
               />
               <button onClick={handlePrint}>Print</button>
             </>

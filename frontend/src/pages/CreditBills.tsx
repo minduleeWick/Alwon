@@ -45,7 +45,7 @@ const CreditBills = () => {
 
   const fetchBills = async () => {
     try {
-      const res = await axios.get('https://alwon.onrender.com/api/payments/history');
+      const res = await axios.get('http://localhost:5000/api/payments/history');
       const mapped = res.data
         .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'credit')
         .map((item: any, idx: number) => ({
@@ -117,7 +117,7 @@ const CreditBills = () => {
       }
       //fdgdgdfg
       // Update the payment in the database
-      await axios.put(`https://alwon.onrender.com/api/payments/update/${selectedBill.id}`, {
+      await axios.put(`http://localhost:5000/api/payments/update/${selectedBill.id}`, {
         payment: newPaidAmount,
         deupayment: newRemainingAmount,
         status: newStatus
