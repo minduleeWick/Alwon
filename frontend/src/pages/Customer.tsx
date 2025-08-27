@@ -11,7 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 
-const apiBase = 'https://alwon.onrender.com/api/customers';
+const apiBase = 'http://localhost:5000/api/customers';
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
 
@@ -20,8 +20,6 @@ interface Customer {
   _id?: string;
   customername?: string;
   phone: string;
-  balance: number;
-  createdAt: string;
   priceRates?: { bottleType: string; price: number }[];
   bottlePrices: { [key: string]: number };
 }
@@ -52,8 +50,6 @@ const Customers: React.FC = () => {
   const [formData, setFormData] = useState<Customer>({
     name: '',
     phone: '',
-    balance: 0,
-    createdAt: new Date().toISOString().split('T')[0],
     bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
   });
   const [page, setPage] = useState(0);
@@ -64,13 +60,12 @@ const Customers: React.FC = () => {
   const handleEditClose = () => setEditOpen(false);
   const handleDeleteClose = () => setDeleteOpen(false);
 
-
-    const handleDeleteConfirm = (index: number) => {
+  const handleDeleteConfirm = (index: number) => {
     setCurrentEditIndex(index);
     setDeleteOpen(true);
   };
 
-    const handleDelete = async () => {
+  const handleDelete = async () => {
     if (currentEditIndex !== null) {
       const customer = customers[currentEditIndex];
       try {
@@ -94,8 +89,7 @@ const Customers: React.FC = () => {
             ...c,
             name: c.customername,
             bottlePrices: priceRatesToBottlePrices(c.priceRates || []),
-            balance: c.balance || 0,
-            createdAt: c.createdAt ? c.createdAt.split('T')[0] : '',
+            phone: c.phone || '',
           }))
         );
       })
@@ -109,13 +103,8 @@ const Customers: React.FC = () => {
     const payload = {
       customername: formData.name,
       phone: formData.phone,
-      balance: formData.balance,
-      createdAt: formData.createdAt,
       priceRates: bottlePricesToPriceRates(formData.bottlePrices),
-      idnumber: 'AUTO', // or get from form if needed
-      address: 'N/A',   // or get from form if needed
-      email: `${formData.name.replace(/\s+/g, '').toLowerCase()}@example.com`, // or get from form
-      type: 'regular',  // or get from form
+      type: 'regular'
     };
     try {
       const res = await axios.post(`${apiBase}/add`, payload);
@@ -125,8 +114,7 @@ const Customers: React.FC = () => {
           ...res.data,
           name: res.data.customername,
           bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
-          balance: res.data.balance || 0,
-          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
+          phone: res.data.phone || ''
         },
       ]);
       handleClose();
@@ -143,10 +131,8 @@ const Customers: React.FC = () => {
       const payload = {
         customername: formData.name,
         phone: formData.phone,
-        balance: formData.balance,
-        createdAt: formData.createdAt,
         priceRates: bottlePricesToPriceRates(formData.bottlePrices),
-
+        type: 'regular'
       };
       try {
         const res = await axios.put(`${apiBase}/${customer._id}`, payload);
@@ -155,8 +141,7 @@ const Customers: React.FC = () => {
           ...res.data,
           name: res.data.customername,
           bottlePrices: priceRatesToBottlePrices(res.data.priceRates || []),
-          balance: res.data.balance || 0,
-          createdAt: res.data.createdAt ? res.data.createdAt.split('T')[0] : '',
+          phone: res.data.phone || ''
         };
         setCustomers(updated);
         setCurrentEditIndex(null);
@@ -168,19 +153,24 @@ const Customers: React.FC = () => {
     }
   };
 
-
   const resetForm = () => {
     setFormData({
       name: '',
       phone: '',
-      balance: 0,
-      createdAt: new Date().toISOString().split('T')[0],
       bottlePrices: Object.fromEntries(bottleTypes.map(type => [type, 0])),
     });
   };
 
   function handleEdit(index: number): void {
-    throw new Error('Function not implemented.');
+    // populate form with selected customer and open edit dialog
+    const c = customers[index];
+    setCurrentEditIndex(index);
+    setFormData({
+      name: c.name || c.customername || '',
+      phone: c.phone || '',
+      bottlePrices: c.bottlePrices || Object.fromEntries(bottleTypes.map(type => [type, 0])),
+    });
+    setEditOpen(true);
   }
 
   return (
@@ -200,19 +190,15 @@ const Customers: React.FC = () => {
                 <TableRow>
                   <TableCell align="center"><strong>Customer Name</strong></TableCell>
                   <TableCell align="center"><strong>Phone</strong></TableCell>
-                  <TableCell align="center"><strong>Remaining Balance (Rs)</strong></TableCell>
                   <TableCell align="center" colSpan={bottleTypes.length}><strong>Bottle Prices (Rs)</strong></TableCell>
-                  <TableCell align="center"><strong>Created At</strong></TableCell>
                   <TableCell align="center"><strong>Actions</strong></TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell />
                   <TableCell />
-                  <TableCell />
                   {bottleTypes.map(type => (
                     <TableCell key={type} align="center"><strong>{type}</strong></TableCell>
                   ))}
-                  <TableCell />
                   <TableCell />
                 </TableRow>
               </TableHead>
@@ -223,11 +209,9 @@ const Customers: React.FC = () => {
                     <TableRow key={index}>
                       <TableCell align="center">{customer.name}</TableCell>
                       <TableCell align="center">{customer.phone}</TableCell>
-                      <TableCell align="center">Rs. {customer.balance.toFixed(2)}</TableCell>
                       {bottleTypes.map(type => (
                         <TableCell key={type} align="center">Rs. {customer.bottlePrices[type] || 0}</TableCell>
                       ))}
-                      <TableCell align="center">{customer.createdAt}</TableCell>
                       <TableCell align="center">
                         <IconButton onClick={() => handleEdit(index)} color="primary">
                           <EditIcon />
@@ -271,13 +255,6 @@ const Customers: React.FC = () => {
               label="Phone" 
               value={formData.phone} 
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
-              fullWidth
-            />
-            <TextField 
-              label="Balance" 
-              type="number" 
-              value={formData.balance} 
-              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
               fullWidth
             />
             
@@ -328,13 +305,6 @@ const Customers: React.FC = () => {
               label="Phone" 
               value={formData.phone} 
               onChange={e => setFormData({ ...formData, phone: e.target.value })} 
-              fullWidth
-            />
-            <TextField 
-              label="Balance" 
-              type="number" 
-              value={formData.balance} 
-              onChange={e => setFormData({ ...formData, balance: +e.target.value })} 
               fullWidth
             />
             
