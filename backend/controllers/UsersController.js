@@ -139,7 +139,7 @@ const forgotPassword = async (req, res) => {
     });
 
     await transporter.sendMail({
-      to: 'it21272868@my.sliit.lk',
+      to: 'minduleewickramasinghe@gmail.com',
       subject: 'Password Reset',
       html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
     });
