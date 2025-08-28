@@ -59,6 +59,11 @@ const Login: React.FC = () => {
 
       setDialogMessage(res.data.message || 'Password reset request sent successfully');
       setResetUsername('');
+      if (res.data.message.includes('sent') || res.data.message.includes('sent')) {
+        setTimeout(() => {
+          handleDialogClose();
+        }, 1500); // Close dialog after 1.5 seconds to allow user to see the success message
+      }
     } catch (err: any) {
       setDialogMessage(err.response?.data?.message || 'Error sending reset request');
     }
