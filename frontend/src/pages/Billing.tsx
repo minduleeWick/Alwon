@@ -58,12 +58,12 @@ const Billing: React.FC = () => {
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get(' http://localhost:5000/api/customers')
+      axios.get('http://localhost:5000/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
   }, [tabIndex]);
-
+  
   // Fetch remaining balance when a registered customer is selected
   useEffect(() => {
     const fetchRemaining = async () => {
@@ -301,9 +301,9 @@ const Billing: React.FC = () => {
     };
 
     try {
-      const response = await axios.post(' http://localhost:5000/api/payments/issue', billData);
+      const response = await axios.post('http://localhost:5000/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
-
+      
       // --- NEW: persist/merge priceRates for this customer so future invoices use updated prices ---
       if (customerIdForBill) {
         try {
@@ -400,9 +400,9 @@ const Billing: React.FC = () => {
 
   return (
     <AdminLayout>
-      <div style={{ display: 'flex', gap: '2rem' }}>
+      <div className="billing-wrapper" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start', overflowX: 'auto' }}>
         {/* Left Side - Invoice Form */}
-        <div className="card billing-card" style={{ flex: 3 }}>
+        <div className="card billing-card" style={{ flex: '3 1 600px', minWidth: 360 }}>
           <div style={{textAlign: 'center', fontSize: 'x-large', fontWeight: 'bold', color: '#0d4483', fontFamily: "'Times New Roman', Times, serif"}}>
             <h1>Invoice</h1>
           </div>
@@ -668,27 +668,29 @@ const Billing: React.FC = () => {
 
           {success && lastBill && (
             <>
-              <InvoicePreview
-                ref={printRef}
-                customerName={lastBill.customerName}
-                customerPhone={lastBill.customerPhone}
-                paymentMethod={lastBill.paymentMethod}
-                bottles={lastBill.bottles}
-                date={lastBill.date}
-                bankName={lastBill.bankName}
-                chequeStatus={lastBill.chequeStatus}
-                creditLimit={lastBill.creditLimit}
-                dueDate={lastBill.dueDate}
-              />
+              <div id="printable-bill">
+                <InvoicePreview
+                  ref={printRef}
+                  customerName={lastBill.customerName}
+                  customerPhone={lastBill.customerPhone}
+                  paymentMethod={lastBill.paymentMethod}
+                  bottles={lastBill.bottles}
+                  date={lastBill.date}
+                  bankName={lastBill.bankName}
+                  chequeStatus={lastBill.chequeStatus}
+                  creditLimit={lastBill.creditLimit}
+                  dueDate={lastBill.dueDate}
+                />
+              </div>
               <button onClick={handlePrint}>Print</button>
             </>
           )}
         </div>
         
         {/* Right Side - Stock Table */}
-        <div style={{ flex: 1, marginTop: '2rem' }}>
+        <div className="stock-panel" style={{ flex: '1 1 315px', minWidth: 280, marginTop: '2rem' }}>
           <h3>Current Stock</h3>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} style={{ maxHeight: 420, overflow: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -720,60 +722,90 @@ const Billing: React.FC = () => {
       </div>
 
       <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-bill, #printable-bill * {
-            visibility: visible;
-          }
-          #printable-bill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 20px;
-          }
-        }
-        
-        .bottle-row {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-        .guest-input-row {
-          display: flex;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-        .customer-search {
-          position: relative;
-          margin-bottom: 1rem;
-        }
-        .customer-list {
-          position: absolute;
-          background: white;
-          border: 1px solid #ccc;
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          max-height: 200px;
-          overflow-y: auto;
-          z-index: 10;
-          width: 100%;
-        }
-        .customer-list li {
-          padding: 8px;
-          cursor: pointer;
-        }
-        .customer-list li:hover {
-          background: #f0f0f0;
-        }
-        .brand-select {
-          margin-bottom: 1rem;
-        }
-      `}</style>
+         @media print {
+           body * {
+             visibility: hidden;
+           }
+           /* show only the printable area and its children */
+           #printable-bill, #printable-bill * {
+             visibility: visible;
+           }
+           /* center the printable content on the page */
+           #printable-bill {
+             position: absolute;
+             left: 0;
+             top: 0;
+             width: 100%;
+             display: flex;
+             justify-content: center;
+             padding: 20px;
+           }
+           /* limit the invoice width when printing */
+           #printable-bill .invoice-wrapper {
+             width: 100%;
+             max-width: 800px;
+           }
+         }
+
+         /* center the invoice preview on-screen as well and add spacing from the form */
+         #printable-bill {
+           display: flex;
+           justify-content: center;
+           margin-top: 3rem; /* ADDED: gap between form and printable invoice */
+         }
+         #printable-bill .invoice-wrapper {
+           width: 100%;
+           max-width: 800px;
+         }
+         
+         .bottle-row {
+           display: flex;
+           align-items: center;
+           gap: 1rem;
+           margin-bottom: 1rem;
+         }
+         /* make inputs/selects inside bottle-row share space responsively */
+         .bottle-row select { flex: 1 1 180px; min-width: 140px; }
+         .bottle-row label { display: flex; align-items: center; gap: 0.5rem; }
+         .bottle-row input { width: 100px; min-width: 80px; }
+         .guest-input-row {
+           display: flex;
+           gap: 1rem;
+           margin-bottom: 1rem;
+         }
+         .customer-search {
+           position: relative;
+           margin-bottom: 1rem;
+         }
+         .customer-list {
+           position: absolute;
+           background: white;
+           border: 1px solid #ccc;
+           list-style: none;
+           padding: 0;
+           margin: 0;
+           max-height: 200px;
+           overflow-y: auto;
+           z-index: 10;
+           width: 100%;
+         }
+         .customer-list li {
+           padding: 8px;
+           cursor: pointer;
+         }
+         .customer-list li:hover {
+           background: #f0f0f0;
+         }
+         .brand-select {
+           margin-bottom: 1rem;
+         }
+         /* Responsive behaviour: stack columns on narrow viewports */
+         @media (max-width: 1000px) {
+           .billing-wrapper { flex-direction: column; }
+           .billing-card { flex: 1 1 100% !important; min-width: 0; }
+           .stock-panel { flex: 1 1 100% !important; min-width: 0; margin-top: 1rem; }
+         }
+       `}</style>
     </AdminLayout>
   );
 };
