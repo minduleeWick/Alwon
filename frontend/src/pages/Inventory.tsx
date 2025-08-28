@@ -48,7 +48,7 @@ interface InventoryItem {
   bottles: BottleEntry[];
 }
 
-const bottleTypes = ['500ml', '1L', '1.5L', '5L', '19L'];
+const bottleTypes = ['500ml', '1L', '1.5L', '5L', '20L'];
 
 const Inventory: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
