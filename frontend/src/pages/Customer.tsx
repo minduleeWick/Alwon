@@ -11,8 +11,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 
-const apiBase = 'http://localhost:5000/api/customers';
-const paymentsApi = 'http://localhost:5000/api/payments/history'; // added
+const apiBase = 'https://alwon.onrender.com/api/customers';
+const paymentsApi = 'https://alwon.onrender.com/api/payments/history'; // added
 
 const bottleTypes = ['500ml', '1L', '1.5L', '5L', '20L'];
 
