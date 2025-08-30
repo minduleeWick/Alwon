@@ -7,12 +7,9 @@ const priceRateSchema = new mongoose.Schema({
 
 const customerSchema = new mongoose.Schema({
   customername: { type: String, required: true, unique: true },
-  idnumber: { type: String, required: true, unique: true },
-  address: { type: String, required: true },
   phone: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
   type: { type: String, required: true },
-  priceRates: [priceRateSchema] // <-- Add this line
+  priceRates: [priceRateSchema]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Customer', customerSchema);

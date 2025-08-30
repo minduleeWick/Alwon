@@ -153,21 +153,37 @@ const issueBill = async (req, res) => {
     // Determine status based on payment method and amounts (all lowercase)
     let computedStatus = 'pending';
     const pm = paymentMethod ? paymentMethod.toLowerCase() : '';
+    const totalAmount = Number(amount) || 0;
+    const paidAmount = Number(payment) || 0;
+
     if (pm === 'cash') {
       computedStatus = 'paid';
     } else if (pm === 'credit') {
-      const paid = Number(payment) || 0;
-      const due = Number(deupayment) || 0;
-      if (due <= 0) {
+      const computedDue = Math.max(0, totalAmount - paidAmount);
+      if (computedDue <= 0) {
         computedStatus = 'paid';
-      } else if (paid === 0) {
+      } else if (paidAmount === 0) {
         computedStatus = 'unpaid';
       } else {
         computedStatus = 'partially paid';
       }
     } else if (pm === 'cheque') {
-      computedStatus = 'pending';
+      // cheque usually pending until cleared; but still compute remaining amount
+      if (paidAmount >= totalAmount) {
+        computedStatus = 'paid';
+      } else {
+        computedStatus = 'pending';
+      }
+    } else {
+      // fallback: compute basic paid vs remaining
+      if (paidAmount >= totalAmount) computedStatus = 'paid';
+      else if (paidAmount === 0) computedStatus = 'unpaid';
+      else computedStatus = 'partially paid';
     }
+
+    // Server authoritative remaining/due values
+    const computedRemaining = Math.max(0, totalAmount - paidAmount);
+    const computedDue = pm === 'credit' ? computedRemaining : (Number(deupayment) || computedRemaining);
 
     // After inventory update for all bottles, save payment
     const paymentDoc = new Payment({
@@ -178,22 +194,22 @@ const issueBill = async (req, res) => {
       itemCode,
       itemName,
       brand, // Add brand to payment record
-      amount,
-      payment,
-      deupayment,
+      amount: totalAmount,
+      payment: paidAmount,
+      deupayment: computedDue,
       creaditlimit,
       paymentMethod,
       status: computedStatus,
       paymentDate: new Date(),
       bottles, // Now bottles include brand information
       invoiceNo: generateUniqueInvoiceId(),
+      remainingAmount: computedRemaining, // persist remaining balance
       // Only set customerName and customerPhone for registered customers
       customerName: customerType === 'registered' ? customerName : undefined,
       customerPhone: customerType === 'registered' ? customerPhone : undefined,
-      ...(paymentMethod === 'Cheque' && {
+      ...( /cheque/i.test(paymentMethod) && {
         chequeNo,
-        chequeDate,
-        remainingAmount
+        chequeDate
       })
     });
 
@@ -235,7 +251,8 @@ const getPaymentHistory = async (req, res) => {
 // Update payment record and handle returns
 const updatePayment = async (req, res) => {
   try {
-    const { paymentId } = req.params;
+    // Accept either :paymentId or :id in the route
+    const paymentId = req.params.paymentId || req.params.id;
     const { status, returnedBottles, payment, deupayment } = req.body;
 
     // Validate payment ID
@@ -249,18 +266,95 @@ const updatePayment = async (req, res) => {
       return res.status(404).json({ error: 'Payment record not found.' });
     }
 
-    // Update payment and deupayment if provided
+    // Update payment and deupayment if provided explicitly
     if (payment !== undefined) {
-      payment_record.payment = payment;
+      payment_record.payment = Number(payment);
     }
     
     if (deupayment !== undefined) {
-      payment_record.deupayment = deupayment;
+      payment_record.deupayment = Number(deupayment);
     }
 
-    // Update status if provided
+    // Normalize incoming status
     if (status) {
-      payment_record.status = status;
+      const newStatus = String(status).toLowerCase();
+
+      // Compute updates based on payment method and status
+      const pm = (payment_record.paymentMethod || '').toLowerCase();
+      const totalAmount = Number(payment_record.amount || 0);
+      const currentPaid = Number(payment_record.payment || 0);
+
+      // Helper to recompute remaining/deupayment from current payment value
+      const recomputeFromPayment = (paidVal) => {
+        const paid = Number(paidVal || 0);
+        const remaining = Math.max(0, totalAmount - paid);
+        payment_record.payment = paid;
+        payment_record.deupayment = remaining;
+        payment_record.remainingAmount = remaining;
+      };
+
+      if (pm === 'cheque') {
+        // capture previous status (before we mutate it)
+        const prevStatus = (payment_record.status || '').toLowerCase();
+
+        if (newStatus === 'cleared') {
+          // Cheque cleared => consider amount collected
+          recomputeFromPayment(totalAmount);
+          payment_record.status = 'cleared';
+        } else if (newStatus === 'bounced') {
+          // Cheque bounced => no payment collected
+          recomputeFromPayment(0);
+          payment_record.status = 'bounced';
+        } else if (newStatus === 'pending') {
+          // If changing from cleared back to pending, revert collected cheque amount
+          if (prevStatus === 'cleared') {
+            recomputeFromPayment(0);
+            payment_record.status = 'pending';
+          } else {
+            // otherwise leave payments as-is but set status
+            payment_record.status = 'pending';
+            payment_record.remainingAmount = Math.max(0, totalAmount - (payment_record.payment || 0));
+            payment_record.deupayment = payment_record.remainingAmount;
+          }
+        } else {
+          // fallback - just set status
+          payment_record.status = newStatus;
+        }
+      } else if (pm === 'credit') {
+        if (newStatus === 'paid') {
+          recomputeFromPayment(totalAmount);
+          payment_record.status = 'paid';
+        } else if (newStatus === 'unpaid') {
+          recomputeFromPayment(0);
+          payment_record.status = 'unpaid';
+        } else if (newStatus === 'partially paid' || newStatus === 'partially_paid') {
+          // Keep existing payment value, recompute remaining
+          recomputeFromPayment(payment_record.payment || 0);
+          payment_record.status = 'partially paid';
+        } else {
+          payment_record.status = newStatus;
+          // Recompute defaults
+          recomputeFromPayment(payment_record.payment || 0);
+        }
+      } else if (pm === 'cash') {
+        if (newStatus === 'paid') {
+          recomputeFromPayment(totalAmount);
+          payment_record.status = 'paid';
+        } else {
+          payment_record.status = newStatus;
+          recomputeFromPayment(payment_record.payment || 0);
+        }
+      } else {
+        // general fallback for other payment methods
+        if (newStatus === 'paid') {
+          recomputeFromPayment(totalAmount);
+        } else if (newStatus === 'unpaid') {
+          recomputeFromPayment(0);
+        } else {
+          recomputeFromPayment(payment_record.payment || 0);
+        }
+        payment_record.status = newStatus;
+      }
     }
 
     // Process bottle returns if provided
@@ -312,19 +406,28 @@ const updatePayment = async (req, res) => {
       payment_record.amount = newTotal;
       
       // Update remaining amount if applicable (for credit payments)
-      if (payment_record.paymentMethod.toLowerCase() === 'credit') {
+      if (payment_record.paymentMethod && payment_record.paymentMethod.toLowerCase() === 'credit') {
         payment_record.deupayment = Math.max(0, newTotal - (payment_record.payment || 0));
         
         // Update status based on new payment balance
         if (payment_record.deupayment <= 0) {
           payment_record.status = 'paid';
-        } else if (payment_record.payment === 0) {
+        } else if ((payment_record.payment || 0) === 0) {
           payment_record.status = 'unpaid';
         } else {
           payment_record.status = 'partially paid';
         }
+      } else {
+        // For non-credit, ensure remainingAmount reflects amount - payment
+        payment_record.remainingAmount = Math.max(0, newTotal - (payment_record.payment || 0));
+        payment_record.deupayment = payment_record.remainingAmount;
       }
     }
+
+    // Ensure remainingAmount is always accurate before saving
+    payment_record.remainingAmount = Math.max(0, (payment_record.amount || 0) - (payment_record.payment || 0));
+    // Keep deupayment in sync as well
+    payment_record.deupayment = payment_record.deupayment !== undefined ? payment_record.deupayment : payment_record.remainingAmount;
 
     // Save the updated payment record
     await payment_record.save();

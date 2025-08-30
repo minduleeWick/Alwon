@@ -35,8 +35,7 @@ const Billing: React.FC = () => {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [bottles, setBottles] = useState([{ type: '', quantity: 1, price: 0 }]);
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [remainingAmount, setRemainingAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [chequeNo, setChequeNo] = useState('');
   const [chequeDate, setChequeDate] = useState('');
   const [paidAmount, setPaidAmount] = useState(0);
@@ -48,16 +47,42 @@ const Billing: React.FC = () => {
   const [chequeStatus, setChequeStatus] = useState('Pending');
   const [creditLimit, setCreditLimit] = useState(0);
   const [dueDate, setDueDate] = useState('');
+  const [remainingBalance, setRemainingBalance] = useState(0);
   const [stockData, setStockData] = useState<Array<{brand: string, bottleSize: string, quantity: number}>>([]);
+
+  // store last bill for preview/printing after clearing form
+  const [lastBill, setLastBill] = useState<any | null>(null);
+
+  const paymentsApi = 'https://alwon.onrender.com/api/payments/history';
 
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get(' https://alwon.onrender.com/api/customers')
+      axios.get('https://alwon.onrender.com/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
   }, [tabIndex]);
+  
+  // Fetch remaining balance when a registered customer is selected
+  useEffect(() => {
+    const fetchRemaining = async () => {
+      if (tabIndex === 0 && selectedCustomer) {
+        try {
+          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer } });
+          const payments = Array.isArray(res.data) ? res.data : [];
+          const remaining = payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
+          setRemainingBalance(remaining);
+        } catch (err) {
+          console.error('Error fetching remaining balance:', err);
+          setRemainingBalance(0);
+        }
+      } else {
+        setRemainingBalance(0);
+      }
+    };
+    fetchRemaining();
+  }, [selectedCustomer, tabIndex]);
 
   // Fetch stock data from backend
   useEffect(() => {
@@ -163,6 +188,35 @@ const Billing: React.FC = () => {
   const calculateTotal = () =>
     bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
+  // clear only the form fields (leave customers/stock/lastBill intact)
+  const clearFormFields = () => {
+    setTabIndex(0);
+    setCustomerSearch('');
+    setSelectedCustomer(null);
+    setGuestName('');
+    setGuestPhone('');
+    setBottles([{ type: '', quantity: 1, price: 0 }]);
+    setPaymentMethod('cash');
+    setChequeNo('');
+    setChequeDate('');
+    setPaidAmount(0);
+    setCreditAmount(0);
+    setBrand('');
+    setBankName('');
+    setChequeStatus('Pending');
+    setCreditLimit(0);
+    setDueDate('');
+  };
+
+  // Helper: build priceRates array from bottles (unique by type)
+  const buildPriceRatesFromBottles = (bottlesList: { type: string; price: number }[]) => {
+    const map: Record<string, number> = {};
+    bottlesList.forEach(b => {
+      if (b.type) map[b.type] = Number(b.price) || 0;
+    });
+    return Object.entries(map).map(([bottleType, price]) => ({ bottleType, price }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -176,19 +230,59 @@ const Billing: React.FC = () => {
       return;
     }
 
+    // If guest, first create a regular customer, then continue with payment using returned customerId
+    let customerIdForBill = tabIndex === 0 ? selectedCustomer : null;
+    if (tabIndex === 1) {
+      try {
+        // build priceRates from bottles so guest is saved with the used prices
+        const priceRatesForGuest = buildPriceRatesFromBottles(bottles);
+        const createPayload = {
+          customername: guestName,
+          phone: guestPhone,
+          type: 'regular',
+          priceRates: priceRatesForGuest
+        };
+        const createRes = await axios.post('https://alwon.onrender.com/api/customers/add', createPayload);
+        const newCustomer = createRes.data;
+        if (!newCustomer || !newCustomer._id) {
+          throw new Error('Failed to create customer');
+        }
+        customerIdForBill = newCustomer._id;
+        // add newly created customer to local customers list so UI updates immediately
+        setCustomers(prev => {
+          // avoid duplicates
+          const exists = prev.some(c => c._id === newCustomer._id);
+          if (exists) return prev;
+          return [...prev, {
+            _id: newCustomer._id,
+            customername: newCustomer.customername || guestName,
+            phone: newCustomer.phone || guestPhone,
+            priceRates: newCustomer.priceRates || []
+          }];
+        });
+      } catch (err: any) {
+        alert('Failed to create customer: ' + (err?.response?.data?.error || err.message || 'Unknown error'));
+        return; // abort payment if customer creation fails
+      }
+    }
+
     const total = calculateTotal();
 
     const billData = {
-      customerId: tabIndex === 0 ? selectedCustomer : undefined,
-      customerType: tabIndex === 0 ? 'registered' : 'guest',
-      guestInfo: tabIndex === 1 ? { name: guestName, phone: guestPhone } : undefined,
+      customerId: customerIdForBill,
+      customerType: tabIndex === 0 ? 'registered' : 'registered', // guest becomes registered after creation
+      guestInfo: tabIndex === 1 ? undefined : undefined, // guest info is not needed once customer created
       quantity: bottles.reduce((sum, b) => sum + b.quantity, 0),
       itemCode: bottles[0].type,
       itemName: bottles.map(b => b.type).join(', '),
-      brand: brand, // Add brand information
+      brand: brand,
       amount: total,
-      payment: paymentMethod === 'credit' ? paidAmount : total,
-      deupayment: paymentMethod === 'credit' ? creditAmount : 0,
+      payment: paymentMethod === 'credit' ? paidAmount
+               : paymentMethod === 'cash' ? total
+               : 0,
+      deupayment: paymentMethod === 'credit' ? creditAmount
+                  : paymentMethod === 'cheque' ? total
+                  : 0,
       creaditlimit: creditLimit,
       paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
       status: 'pending',
@@ -197,27 +291,87 @@ const Billing: React.FC = () => {
         chequeDate,
         bankName,
         chequeStatus,
-        remainingAmount
       }),
       bottles: bottles.map(b => ({
         type: b.type,
         quantity: b.quantity,
         price: b.price,
-        brand: brand // Add brand to each bottle
+        brand: brand
       }))
     };
 
     try {
-      const response = await axios.post(' https://alwon.onrender.com/api/payments/issue', billData);
+      const response = await axios.post('https://alwon.onrender.com/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
-      setSuccess(true);
       
+      // --- NEW: persist/merge priceRates for this customer so future invoices use updated prices ---
+      if (customerIdForBill) {
+        try {
+          // build priceRates from the submitted bill (use billData.bottles which contains the submitted prices)
+          const newRates = buildPriceRatesFromBottles(billData.bottles);
+          // merge with existing customer rates (overwrite existing types with newRates)
+          const existingCustomer = customers.find(c => c._id === (selectedCustomer || customerIdForBill));
+          const mergedMap: Record<string, number> = {};
+          (existingCustomer?.priceRates || []).forEach((r: any) => {
+            mergedMap[r.bottleType] = r.price;
+          });
+          newRates.forEach((r: any) => {
+            mergedMap[r.bottleType] = r.price; // overwrite or add
+          });
+          const mergedPriceRates = Object.entries(mergedMap).map(([bottleType, price]) => ({ bottleType, price }));
+
+          // send update to backend (edit customer)
+          await axios.put(`https://alwon.onrender.com/api/customers/${customerIdForBill}`, {
+            customername: existingCustomer?.customername || (tabIndex === 1 ? guestName : ''),
+            phone: existingCustomer?.phone || (tabIndex === 1 ? guestPhone : ''),
+            priceRates: mergedPriceRates,
+            type: 'regular'
+          });
+
+          // update local customers state to reflect new rates immediately
+          setCustomers(prev => prev.map(c => c._id === customerIdForBill ? { ...c, priceRates: mergedPriceRates } : c));
+        } catch (err) {
+          console.error('Failed to update customer priceRates after billing:', err);
+        }
+      }
+      // --- END NEW ---
+
+      // Keep a snapshot of the bill for printing, then clear the form
+      setLastBill({
+        customerName: tabIndex === 0 ? customers.find(c => c._id === selectedCustomer)?.customername || '' : guestName,
+        customerPhone: tabIndex === 0 ? customers.find(c => c._id === selectedCustomer)?.phone || '' : guestPhone,
+        paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+        bottles: billData.bottles,
+        date: new Date().toISOString().split('T')[0],
+        bankName: paymentMethod === 'cheque' ? bankName : undefined,
+        chequeStatus: paymentMethod === 'cheque' ? chequeStatus : undefined,
+        creditLimit: paymentMethod === 'credit' ? creditLimit : undefined,
+        dueDate: dueDate || undefined
+      });
+
+      // reset the form inputs (do this after merging/updating customer rates)
+      clearFormFields();
+      // show preview (uses lastBill)
+      setSuccess(true);
+
       // Refresh stock data immediately after successful payment
       axios.get('https://alwon.onrender.com/api/inventory/stock')
         .then(res => setStockData(res.data))
         .catch(err => {
           console.error("Error fetching updated stock data:", err);
         });
+
+      // Refresh remaining balance after creating bill (for registered customer)
+      if ((tabIndex === 0 && selectedCustomer) || (tabIndex === 1 && customerIdForBill)) {
+        try {
+          const res = await axios.get(paymentsApi, { params: { customerId: selectedCustomer || customerIdForBill } });
+          const payments = Array.isArray(res.data) ? res.data : [];
+          const remaining = payments.reduce((sum: number, p: any) => sum + (Number(p.remainingAmount ?? p.deupayment ?? 0) || 0), 0);
+          setRemainingBalance(remaining);
+        } catch (err) {
+          console.error('Error refreshing remaining balance:', err);
+        }
+      }
     } catch (error: any) {
       if (error.response && error.response.data && error.response.data.error) {
         alert('Failed to save bill: ' + error.response.data.error);
@@ -241,11 +395,14 @@ const Billing: React.FC = () => {
     return Array.from(brands);
   }, [stockData]);
 
+  // Sort stockData by brand name alphabetically for display
+  const sortedStockData = [...stockData].sort((a, b) => a.brand.localeCompare(b.brand));
+
   return (
     <AdminLayout>
-      <div style={{ display: 'flex', gap: '2rem' }}>
+      <div className="billing-wrapper" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start', overflowX: 'auto' }}>
         {/* Left Side - Invoice Form */}
-        <div className="card billing-card" style={{ flex: 3 }}>
+        <div className="card billing-card" style={{ flex: '3 1 600px', minWidth: 360 }}>
           <div style={{textAlign: 'center', fontSize: 'x-large', fontWeight: 'bold', color: '#0d4483', fontFamily: "'Times New Roman', Times, serif"}}>
             <h1>Invoice</h1>
           </div>
@@ -284,6 +441,8 @@ const Billing: React.FC = () => {
                 )}
               </div>
             )}
+
+           
 
             {tabIndex === 1 && (
               <div className="guest-input-row">
@@ -339,9 +498,15 @@ const Billing: React.FC = () => {
                   disabled={!brand}
                 >
                   <option value="">Select Bottle Size</option>
-                  {bottleSizes.map(size => <option key={size} value={size}>{size} (Stock: {
-                    stockData.find(s => s.brand === brand && s.bottleSize === size)?.quantity || 0
-                  })</option>)}
+                  {bottleSizes.map(size => {
+                    const stockQty = stockData.find(s => s.brand === brand && s.bottleSize === size)?.quantity ?? 0;
+                    const outOfStock = stockQty <= 0;
+                    return (
+                      <option key={size} value={size} disabled={outOfStock}>
+                        {size} (Stock: {stockQty})
+                      </option>
+                    );
+                  })}
                 </select>
                 <label>Qty:
                   <input type="number" min={1} value={item.quantity}
@@ -380,20 +545,36 @@ const Billing: React.FC = () => {
               </label>
             </div>
 
-            {['cheque'].includes(paymentMethod) && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-              <div className="remaining-amount">
+            {/* Remaining Balance for registered customers when paying by Cash (styled like other amount fields) */}
+            {tabIndex === 0 && selectedCustomer && paymentMethod === 'cash' && (
+              <div className="amount" style={{ marginTop: '1rem' }}>
                 <label>
-                  Remaining Amount:
+                  Remaining Balance:
                   <input
-                    type="number"
-                    min={0}
-                    value={remainingAmount}
-                    onChange={(e) => setRemainingAmount(Number(e.target.value))}
-                    required
+                    type="text"
+                    value={remainingBalance.toFixed(2)}
+                    readOnly
                   />
                 </label>
               </div>
+            )}
+
+            {['cheque'].includes(paymentMethod) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              
+              {/* Remaining Balance (for registered customers) - displayed above Cheque No */}
+              {tabIndex === 0 && selectedCustomer && (
+                <div className="amount">
+                  <label>
+                    Remaining Balance:
+                    <input
+                      type="text"
+                      value={remainingBalance.toFixed(2)}
+                      readOnly
+                    />
+                  </label>
+                </div>
+              )}
 
               <div className="cheque-no">
                 <label>
@@ -406,7 +587,7 @@ const Billing: React.FC = () => {
                   />
                 </label>
               </div>
-
+              
               <div className="amount">
                 <label>
                   Amount:
@@ -417,7 +598,7 @@ const Billing: React.FC = () => {
                   />
                 </label>
               </div>
-
+  
               <div className="date">
                 <label>
                   Date:
@@ -433,6 +614,19 @@ const Billing: React.FC = () => {
           )}
         {['credit'].includes(paymentMethod) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              {/* Remaining Balance (for registered customers) - same style as other amount fields */}
+              {tabIndex === 0 && selectedCustomer && (
+                <div className="amount">
+                  <label>
+                    Remaining Balance:
+                    <input
+                      type="text"
+                      value={remainingBalance.toFixed(2)}
+                      readOnly
+                    />
+                  </label>
+                </div>
+              )}
               <div className="amount">
                 <label>
                   Total Amount:
@@ -472,29 +666,31 @@ const Billing: React.FC = () => {
           <button type="submit" className="button-submit">Submit Bill</button>
         </form>
 
-          {success && (
+          {success && lastBill && (
             <>
-              <InvoicePreview
-                ref={printRef}
-                customerName={customerName}
-                customerPhone={customerPhone}
-                paymentMethod={paymentMethod}
-                bottles={bottles}
-                date={new Date().toISOString().split('T')[0]}
-                bankName={paymentMethod === 'Cheque' ? bankName : undefined}
-                chequeStatus={paymentMethod === 'Cheque' ? chequeStatus : undefined}
-                creditLimit={paymentMethod === 'Credit' ? creditLimit : undefined}
-                dueDate={dueDate || undefined}
-              />
+              <div id="printable-bill">
+                <InvoicePreview
+                  ref={printRef}
+                  customerName={lastBill.customerName}
+                  customerPhone={lastBill.customerPhone}
+                  paymentMethod={lastBill.paymentMethod}
+                  bottles={lastBill.bottles}
+                  date={lastBill.date}
+                  bankName={lastBill.bankName}
+                  chequeStatus={lastBill.chequeStatus}
+                  creditLimit={lastBill.creditLimit}
+                  dueDate={lastBill.dueDate}
+                />
+              </div>
               <button onClick={handlePrint}>Print</button>
             </>
           )}
         </div>
         
         {/* Right Side - Stock Table */}
-        <div style={{ flex: 1, marginTop: '2rem' }}>
+        <div className="stock-panel" style={{ flex: '1 1 315px', minWidth: 280, marginTop: '2rem' }}>
           <h3>Current Stock</h3>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} style={{ maxHeight: 420, overflow: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -504,8 +700,8 @@ const Billing: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {stockData.length > 0 ? (
-                  stockData.map((row, index) => (
+                {sortedStockData.length > 0 ? (
+                  sortedStockData.map((row, index) => (
                     <TableRow key={`stock-${index}`}>
                       <TableCell>{row.brand}</TableCell>
                       <TableCell>{row.bottleSize}</TableCell>
@@ -526,63 +722,92 @@ const Billing: React.FC = () => {
       </div>
 
       <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-bill, #printable-bill * {
-            visibility: visible;
-          }
-          #printable-bill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 20px;
-          }
-        }
-        
-        .bottle-row {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-        .guest-input-row {
-          display: flex;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-        .customer-search {
-          position: relative;
-          margin-bottom: 1rem;
-        }
-        .customer-list {
-          position: absolute;
-          background: white;
-          border: 1px solid #ccc;
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          max-height: 200px;
-          overflow-y: auto;
-          z-index: 10;
-          width: 100%;
-        }
-        .customer-list li {
-          padding: 8px;
-          cursor: pointer;
-        }
-        .customer-list li:hover {
-          background: #f0f0f0;
-        }
-        .brand-select {
-          margin-bottom: 1rem;
-        }
-      `}</style>
+         @media print {
+           body * {
+             visibility: hidden;
+           }
+           /* show only the printable area and its children */
+           #printable-bill, #printable-bill * {
+             visibility: visible;
+           }
+           /* center the printable content on the page */
+           #printable-bill {
+             position: absolute;
+             left: 0;
+             top: 0;
+             width: 100%;
+             display: flex;
+             justify-content: center;
+             padding: 20px;
+           }
+           /* limit the invoice width when printing */
+           #printable-bill .invoice-wrapper {
+             width: 100%;
+             max-width: 800px;
+           }
+         }
+
+         /* center the invoice preview on-screen as well and add spacing from the form */
+         #printable-bill {
+           display: flex;
+           justify-content: center;
+           margin-top: 3rem; /* ADDED: gap between form and printable invoice */
+         }
+         #printable-bill .invoice-wrapper {
+           width: 100%;
+           max-width: 800px;
+         }
+         
+         .bottle-row {
+           display: flex;
+           align-items: center;
+           gap: 1rem;
+           margin-bottom: 1rem;
+         }
+         /* make inputs/selects inside bottle-row share space responsively */
+         .bottle-row select { flex: 1 1 180px; min-width: 140px; }
+         .bottle-row label { display: flex; align-items: center; gap: 0.5rem; }
+         .bottle-row input { width: 100px; min-width: 80px; }
+         .guest-input-row {
+           display: flex;
+           gap: 1rem;
+           margin-bottom: 1rem;
+         }
+         .customer-search {
+           position: relative;
+           margin-bottom: 1rem;
+         }
+         .customer-list {
+           position: absolute;
+           background: white;
+           border: 1px solid #ccc;
+           list-style: none;
+           padding: 0;
+           margin: 0;
+           max-height: 200px;
+           overflow-y: auto;
+           z-index: 10;
+           width: 100%;
+         }
+         .customer-list li {
+           padding: 8px;
+           cursor: pointer;
+         }
+         .customer-list li:hover {
+           background: #f0f0f0;
+         }
+         .brand-select {
+           margin-bottom: 1rem;
+         }
+         /* Responsive behaviour: stack columns on narrow viewports */
+         @media (max-width: 1000px) {
+           .billing-wrapper { flex-direction: column; }
+           .billing-card { flex: 1 1 100% !important; min-width: 0; }
+           .stock-panel { flex: 1 1 100% !important; min-width: 0; margin-top: 1rem; }
+         }
+       `}</style>
     </AdminLayout>
   );
 };
 
 export default Billing;
-   

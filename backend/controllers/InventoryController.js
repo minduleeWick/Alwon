@@ -104,19 +104,52 @@ const editInventoryItem = async (req, res) => {
   }
 
   try {
-    // Normalize bottle data
-    const normalizedBottles = bottles.map((bottle) => ({
-      itemName: bottle.itemName || `${bottle.itemCode} Water Bottle`,
-      itemCode: bottle.itemCode,
-      quantity: Number(bottle.quantity),
-      pricePerUnit: Number(bottle.pricePerUnit) || 100,
-      supplierName: bottle.supplierName || 'Default Supplier',
-      availablequantity: Number(bottle.availablequantity) || Number(bottle.quantity) || 0,
-      sellingprice: Number(bottle.sellingprice) || 150,
-      totalreavanue: Number(bottle.totalreavanue) || 0,
-      soldquantity: Number(bottle.soldquantity) || 0,
-      profitearn: Number(bottle.profitearn) || 0,
-    }));
+    // Fetch existing inventory to compute deltas for availablequantity
+    const existingInventory = await Inventory.findById(id);
+    if (!existingInventory) {
+      return res.status(404).json({ error: 'Inventory item not found.' });
+    }
+
+    // Create a map of existing bottles by itemCode
+    const existingMap = new Map();
+    existingInventory.bottles.forEach((b) => existingMap.set(b.itemCode, b));
+
+    // Normalize bottle data and adjust availablequantity based on change in quantity
+    const normalizedBottles = bottles.map((bottle) => {
+      const old = existingMap.get(bottle.itemCode);
+      const newQuantity = Number(bottle.quantity);
+      const providedAvailable = bottle.availablequantity !== undefined && bottle.availablequantity !== null;
+
+      let newAvailable;
+      if (providedAvailable) {
+        // If client explicitly provided availablequantity (even 0), respect it
+        newAvailable = Number(bottle.availablequantity);
+      } else if (old) {
+        // Adjust available by the change in total quantity
+        const oldQty = Number(old.quantity || 0);
+        const oldAvailable = Number(old.availablequantity ?? oldQty ?? 0);
+        const delta = newQuantity - oldQty;
+        newAvailable = oldAvailable + delta;
+      } else {
+        // No existing bottle, set available to new quantity
+        newAvailable = newQuantity;
+      }
+
+      if (isNaN(newAvailable) || newAvailable < 0) newAvailable = 0;
+
+      return {
+        itemName: bottle.itemName || `${bottle.itemCode} Water Bottle`,
+        itemCode: bottle.itemCode,
+        quantity: newQuantity,
+        pricePerUnit: Number(bottle.pricePerUnit) || 100,
+        supplierName: bottle.supplierName || 'Default Supplier',
+        availablequantity: newAvailable,
+        sellingprice: Number(bottle.sellingprice) || 150,
+        totalreavanue: Number(bottle.totalreavanue) || 0,
+        soldquantity: Number(bottle.soldquantity) || 0,
+        profitearn: Number(bottle.profitearn) || 0,
+      };
+    });
 
     // Update the inventory item (include brand)
     const updatedItem = await Inventory.findByIdAndUpdate(
@@ -179,21 +212,43 @@ const updateInventoryByItemCode = async (req, res) => {
         continue;
       }
 
-      const item = await Inventory.findOne({ itemCode });
-
-      if (!item) {
+      // Find the document that contains the bottle with this itemCode
+      const doc = await Inventory.findOne({ 'bottles.itemCode': itemCode });
+      if (!doc) {
         results.push({ itemCode, error: 'Item not found.' });
         continue;
       }
 
-      if (quantity != null) item.quantity = quantity;
-      if (availablequantity != null) item.availablequantity = availablequantity;
-      if (totalreavanue != null) item.totalreavanue = totalreavanue;
-      if (profitearn != null) item.profitearn = profitearn;
-      if (date != null) item.date = date;
+      // Find the bottle entry inside the document
+      const bottle = doc.bottles.find(b => b.itemCode === itemCode);
+      if (!bottle) {
+        results.push({ itemCode, error: 'Bottle not found inside document.' });
+        continue;
+      }
 
-      await item.save();
-      results.push({ itemCode, message: 'Item updated successfully', updatedItem: item });
+      // Apply updates; compute availablequantity delta when quantity changes unless explicit availablequantity provided
+      if (quantity != null && !isNaN(quantity)) {
+        const newQty = Number(quantity);
+        const oldQty = Number(bottle.quantity || 0);
+        const delta = newQty - oldQty;
+        bottle.quantity = newQty;
+
+        if (availablequantity != null) {
+          bottle.availablequantity = Number(availablequantity);
+        } else {
+          const oldAvailable = Number(bottle.availablequantity ?? oldQty ?? 0);
+          bottle.availablequantity = Math.max(0, oldAvailable + delta);
+        }
+      } else if (availablequantity != null) {
+        bottle.availablequantity = Number(availablequantity);
+      }
+
+      if (totalreavanue != null) bottle.totalreavanue = Number(totalreavanue);
+      if (profitearn != null) bottle.profitearn = Number(profitearn);
+      if (date != null) doc.date = date;
+
+      await doc.save();
+      results.push({ itemCode, message: 'Item updated successfully', updatedItem: bottle });
     }
 
     res.status(200).json({ results });

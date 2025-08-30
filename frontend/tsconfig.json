@@ -22,5 +22,11 @@
   },
   "include": [
     "src"
-  ]
+  ],
+  "rules": {
+    // Disable type-checking rules if not needed
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "react-hooks/exhaustive-deps": "off"
+  }
 }

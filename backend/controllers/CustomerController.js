@@ -8,15 +8,17 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 // ✅ Add a new customer
 const addCustomer = async (req, res) => {
   try {
-    const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
+    const { customername, phone, priceRates } = req.body;
 
     // Check for missing fields
-    if (!customername || !idnumber || !address || !phone || !email || !type) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    if (!customername || !phone || !priceRates) {
+      return res.status(400).json({ error: 'customername, phone and priceRates are required.' });
     }
 
+    const type = req.body.type || 'regular';
+
     // Create and save the customer
-    const customer = new Customer({ customername, idnumber, address, phone, email, type, priceRates });
+    const customer = new Customer({ customername, phone, priceRates, type });
     await customer.save();
     res.status(201).json(customer);
   } catch (err) {
@@ -60,20 +62,21 @@ const deleteCustomer = async (req, res) => {
 // ✅ Edit/update a customer by ID
 const editCustomer = async (req, res) => {
   const { id } = req.params;
-  const { customername, idnumber, address, phone, email, type, priceRates } = req.body;
+  const { customername, phone, priceRates } = req.body;
 
   if (!isValidObjectId(id)) {
     return res.status(400).json({ error: 'Invalid customer ID format.' });
   }
 
-  if (!customername || !idnumber || !address || !phone || !email || !type) {
-    return res.status(400).json({ error: 'All fields are required.' });
+  if (!customername || !phone || !priceRates) {
+    return res.status(400).json({ error: 'customername, phone and priceRates are required.' });
   }
 
   try {
+    const type = req.body.type || 'regular';
     const updatedCustomer = await Customer.findByIdAndUpdate(
       id,
-      { customername, idnumber, address, phone, email, type, priceRates },
+      { customername, phone, type, priceRates },
       { new: true, runValidators: true }
     );
 
@@ -98,8 +101,7 @@ const searchCustomers = async (req, res) => {
   try {
     const customers = await Customer.find({
       $or: [
-        { customername: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } }
+        { customername: { $regex: query, $options: 'i' } }
       ]
     });
     res.json(customers);
@@ -188,14 +190,11 @@ const getAllCustomerCreditSummaries = async (req, res) => {
           as: 'customer'
         }
       },
-      {
-        $unwind: '$customer'
-      },
+      { $unwind: '$customer' },
       {
         $project: {
           customerId: '$_id',
           customername: '$customer.customername',
-          email: '$customer.email',
           phone: '$customer.phone',
           totalCreditAmount: 1,
           totalCreditPayment: 1,
@@ -225,3 +224,4 @@ module.exports = {
   searchCustomers,
   getAllCustomerCreditSummaries,
 };
+

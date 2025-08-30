@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Typography,
   Table,
   TableBody,
   TableCell,
@@ -24,6 +23,7 @@ interface ChequePayment {
   chequeNo: string;
   dueDate: string;
   amount: number;
+  remainingAmount: number; // <-- new field
   status: 'pending' | 'cleared' | 'bounced';
 }
 
@@ -37,7 +37,7 @@ const ChequePayments = () => {
 
   const fetchCheques = async () => {
     try {
-      const res = await axios.get(' https://alwon.onrender.com/api/payments/history');
+      const res = await axios.get('https://alwon.onrender.com/api/payments/history');
       const mapped = res.data
         .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
         .map((item: any, idx: number) => ({
@@ -51,6 +51,9 @@ const ChequePayments = () => {
           chequeNo: item.chequeNo || '',
           dueDate: item.chequeDate ? item.chequeDate.split('T')[0] : '',
           amount: item.amount || 0,
+          remainingAmount: (typeof item.remainingAmount === 'number') 
+                            ? item.remainingAmount 
+                            : ((item.amount || 0) - (item.payment || 0)), // fallback calculation
           status: (item.status || '').toLowerCase() as ChequePayment['status'],
         }));
       setCheques(mapped);
@@ -75,12 +78,6 @@ const ChequePayments = () => {
         status: newStatus
       });
       
-      // Make sure we create a new array with the updated status
-      const updated = cheques.map((cheque) =>
-        cheque.id === id ? { ...cheque, status: newStatus } : cheque
-      );
-      setCheques(updated);
-      
       setSnackbar({
         open: true,
         message: 'Cheque status updated successfully',
@@ -93,8 +90,8 @@ const ChequePayments = () => {
         message: 'Failed to update cheque status',
         severity: 'error'
       });
-      
-      // Refresh the data from the server to ensure UI is in sync with DB
+    } finally {
+      // Always refresh the list after the action
       fetchCheques();
     }
   };
@@ -124,6 +121,7 @@ const ChequePayments = () => {
               <TableCell align="center"><b>Cheque No</b></TableCell>
               <TableCell align="center"><b>Due Date</b></TableCell>
               <TableCell align="center"><b>Amount</b></TableCell>
+              <TableCell align="center"><b>Remaining</b></TableCell> {/* new column */}
               <TableCell align="center"><b>Status</b></TableCell>
             </TableRow>
           </TableHead>
@@ -136,6 +134,7 @@ const ChequePayments = () => {
                 <TableCell align="center">{row.chequeNo}</TableCell>
                 <TableCell align="center">{row.dueDate}</TableCell>
                 <TableCell align="center">{row.amount.toFixed(2)}</TableCell>
+                <TableCell align="center">{row.remainingAmount.toFixed(2)}</TableCell> {/* display */}
                 <TableCell align="center">
                   <Select
                     value={row.status}

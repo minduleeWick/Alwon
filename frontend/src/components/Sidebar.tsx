@@ -7,20 +7,52 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PeopleAltIcon from '@mui/icons-material/People';
 import HistoryIcon from '@mui/icons-material/History';
+import { useTheme, useMediaQuery } from '@mui/material';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const handleToggle = () => setOpen(!open);
 
+  // Styles: persistent on desktop, overlay on mobile/tablet
+  const navStyle: React.CSSProperties = isDesktop
+    ? {
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 220,
+        overflowY: 'auto',
+        zIndex: 1200,
+      }
+    : {
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 260,
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 240ms ease-in-out',
+        background: '#fff',
+        zIndex: 1400, // ensure it overlays the TopBar on small screens
+        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      };
+
   return (
     <>
-      <button className="sidebar-toggle" onClick={handleToggle}>
+      <button
+        className="sidebar-toggle"
+        onClick={handleToggle}
+        aria-label="Toggle sidebar"
+        style={{ zIndex: 1500 }}
+      >
         ☰
       </button>
-      <nav className={`sidebar${open ? ' open' : ''}`}>
-        <div className="sidebar-scroll-container">
+      <nav className={`sidebar${open ? ' open' : ''}`} style={navStyle} aria-hidden={!isDesktop && !open}>
+        <div className="sidebar-scroll-container" style={{ height: '100%', overflowY: 'auto' }}>
           <div className="sidebar-logo">
             <img src="/logo.png" alt="Company Logo" />
           </div>

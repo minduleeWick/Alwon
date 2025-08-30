@@ -40,7 +40,8 @@ const InvoicePreview = forwardRef<HTMLDivElement, InvoiceProps>(
     const total = bottles.reduce((sum, b) => sum + b.quantity * b.price, 0);
 
     return (
-      <div className="invoice-wrapper" ref={ref}>
+      // constrain width and center the invoice
+      <div className="invoice-wrapper" ref={ref} style={{ margin: '0 auto', width: '100%', maxWidth: 800 }}>
           <div className="invoice-logo-wrapper">
             <img src="logo.png" alt="Company Logo" className="invoice-logo" />
           </div>

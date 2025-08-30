@@ -117,22 +117,42 @@ const InventoryForm: React.FC<Props> = ({ onSubmit, onCancel, initialData, isEdi
       return;
     }
 
+    // Build payload bottles: omit availablequantity when editing if user didn't change it
     const items: InventoryItem[] = [
       {
         _id: isEditMode ? initialData?._id || '' : '', // Preserve _id in edit mode
         date,
-        bottles: bottles.map((bottle) => ({
-          itemName: bottle.itemName || `${bottle.itemCode} Water Bottle`,
-          itemCode: bottle.itemCode,
-          quantity: bottle.quantity,
-          pricePerUnit: bottle.pricePerUnit || 100,
-          supplierName: bottle.supplierName || 'Default Supplier',
-          availablequantity: bottle.availablequantity || bottle.quantity,
-          sellingprice: bottle.sellingprice || 150,
-          totalreavanue: bottle.totalreavanue || 0,
-          soldquantity: bottle.soldquantity || 0,
-          profitearn: bottle.profitearn || 0,
-        })),
+        bottles: bottles.map((bottle) => {
+          // find matching initial bottle if editing
+          const initialBottle = initialData?.bottles?.find(b => b.itemCode === bottle.itemCode);
+
+          // determine if user explicitly changed availablequantity
+          const userChangedAvailable =
+            initialBottle === undefined ||
+            bottle.availablequantity !== initialBottle.availablequantity;
+
+          const base = {
+            itemName: bottle.itemName || `${bottle.itemCode} Water Bottle`,
+            itemCode: bottle.itemCode,
+            quantity: bottle.quantity,
+            pricePerUnit: bottle.pricePerUnit || 100,
+            supplierName: bottle.supplierName || 'Default Supplier',
+            sellingprice: bottle.sellingprice || 150,
+            totalreavanue: bottle.totalreavanue || 0,
+            soldquantity: bottle.soldquantity || 0,
+            profitearn: bottle.profitearn || 0,
+          } as any;
+
+          if (userChangedAvailable) {
+            // preserve explicit 0 value; fallback to quantity if undefined/null
+            base.availablequantity = bottle.availablequantity !== undefined && bottle.availablequantity !== null
+              ? bottle.availablequantity
+              : bottle.quantity;
+          }
+          // when not userChangedAvailable we omit availablequantity to let backend recompute it
+
+          return base as BottleEntry;
+        }),
         brand: brand || 'Unknown Brand',
       },
     ];

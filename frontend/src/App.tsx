@@ -13,6 +13,7 @@ import ChequePayments from './pages/ChequePayments';
 import Pageloader from './pages/Pageloader';
 import Chatbot from './pages/Chatbot';
 import ProtectedRoute from './components/ProtectedRoute';
+import ResetPassword from './components/ResetPassword';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
         {/* Optional utility route */}
         <Route path="/pageloader" element={<Pageloader />} />
         <Route path="/chatbot" element={<Chatbot />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         {/* Add more routes as needed */}
       </Routes>

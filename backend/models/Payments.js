@@ -76,7 +76,7 @@ const paymentSchema = new mongoose.Schema({
     },
     remainingAmount: {
         type: Number,
-        default: 0
+        default: 0 // server calculates and sets this to (amount - payment) when saving/updating
     },
     paymentDate: {
         type: Date,

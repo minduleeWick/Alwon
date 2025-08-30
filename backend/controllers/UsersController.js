@@ -128,7 +128,7 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `https://alwon.onrender.com/api/users/reset-password/${token}`;
+    const resetUrl = `http://localhost:3000/reset-password/${token}`;
 
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
@@ -139,9 +139,23 @@ const forgotPassword = async (req, res) => {
     });
 
     await transporter.sendMail({
-      to: 'it21272868@my.sliit.lk',
+      to: 'minduleewickramasinghe@gmail.com',
       subject: 'Password Reset',
-      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
+      html: `
+    <div style="font-family: Arial, sans-serif; color: #333;">
+      <h2>Password Reset Request</h2>
+      <p>Hello,</p>
+      <p>You requested to reset your password for your Alwon account.</p>
+      <p>
+        <a href="${resetUrl}" 
+           style="display:inline-block;padding:10px 20px;background:#1976d2;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">
+          Reset Password
+        </a>
+      </p>
+      <p>If you did not request this, please ignore this email.</p>
+      <p>Thanks,<br/>Alwon Team</p>
+    </div>
+  `
     });
 
     res.json({ message: 'Password reset email sent.' });

@@ -7,18 +7,19 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import '../styles/topbar.css';
 import { ThemeContext } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 const TopBar: React.FC = () => {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  // Get username from localStorage, fallback to 'Admin User'
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [username] = useState(localStorage.getItem('username') || 'Admin User');
+  const navigate = useNavigate();
 
   // Settings state
   const [notifications, setNotifications] = useState(true);
   const [language, setLanguage] = useState('en');
 
-  // Notification handlers
   const handleNotifClick = (event: React.MouseEvent<HTMLElement>) => {
     setNotifAnchorEl(event.currentTarget);
   };
@@ -26,7 +27,6 @@ const TopBar: React.FC = () => {
     setNotifAnchorEl(null);
   };
 
-  // Settings menu handlers
   const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
     setSettingsAnchorEl(event.currentTarget);
   };
@@ -34,19 +34,29 @@ const TopBar: React.FC = () => {
     setSettingsAnchorEl(null);
   };
 
-  // Profile dialog handlers
-  const handleProfileOpen = () => {
-    // setProfileOpen(true);
+  // Profile menu handlers
+  const handleProfileOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileAnchorEl(event.currentTarget);
+  };
+  const handleProfileClose = () => {
+    setProfileAnchorEl(null);
   };
 
-  // Settings change handlers
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('token'); // if you store JWT
+    setProfileAnchorEl(null);
+    navigate('/'); // redirect to login page
+  };
+
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
     <Box
       className="topbar"
       sx={{
-        width: { xs: '100%', sm: '100%', md: 'calc(92% - 270px)' },
+        width: '100%',
         backgroundColor: '#fff',
         borderBottom: '1px solid #e0e0e0',
         display: 'flex',
@@ -56,14 +66,13 @@ const TopBar: React.FC = () => {
         boxShadow: 1,
         position: 'sticky',
         top: 0,
-        zIndex: 1000,
+        zIndex: 1300,
         height: { xs: 48, sm: 56, md: 64 },
-        left: { xs: 0, md: 220 },
-        transition: 'width 0.3s, left 0.3s',
+        boxSizing: 'border-box',
       }}
     >
       <Box />
-      <Box display="flex" alignItems="center">
+      <Box display="flex" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap', minWidth: 0 }}>
         <IconButton size="small" className="topbar-icon" onClick={handleNotifClick}>
           <NotificationsIcon fontSize="small" />
         </IconButton>
@@ -142,12 +151,24 @@ const TopBar: React.FC = () => {
           sx={{
             display: { xs: 'none', sm: 'block' },
             cursor: 'pointer',
-            fontSize: { xs: '0.95rem', sm: '1rem' }
+            fontSize: { xs: '0.95rem', sm: '1rem' },
+            maxWidth: 160,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
           onClick={handleProfileOpen}
         >
           {username}
         </Typography>
+        <Menu
+          anchorEl={profileAnchorEl}
+          open={Boolean(profileAnchorEl)}
+          onClose={handleProfileClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <MenuItem onClick={handleLogout}>Log Out</MenuItem>
+        </Menu>
       </Box>
       {/* Profile Edit Dialog */}
       {/* ...existing profile dialog code... */}
