@@ -37,7 +37,7 @@ const ChequePayments = () => {
 
   const fetchCheques = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/payments/history');
+      const res = await axios.get('https://alwon.onrender.com/api/payments/history');
       const mapped = res.data
         .filter((item: any) => (item.paymentMethod || '').toLowerCase() === 'cheque')
         .map((item: any, idx: number) => ({
@@ -74,7 +74,7 @@ const ChequePayments = () => {
   const handleStatusChange = async (id: string, newStatus: ChequePayment['status']) => {
     try {
       // Update status in the database
-      await axios.put(`http://localhost:5000/api/payments/update/${id}`, {
+      await axios.put(`https://alwon.onrender.com/api/payments/update/${id}`, {
         status: newStatus
       });
       

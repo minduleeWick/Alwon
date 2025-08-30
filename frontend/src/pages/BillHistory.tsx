@@ -45,7 +45,7 @@ const BillHistory: React.FC = () => {
 
   const fetchBills = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/payments/history');
+      const response = await axios.get('https://alwon.onrender.com/api/payments/history');
       // Map backend data to Bill[]
       const mapped = response.data.map((item: any) => ({
         _id: item._id,
@@ -80,7 +80,7 @@ const BillHistory: React.FC = () => {
     
     try {
       // Update status in the database
-      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
+      await axios.put(`https://alwon.onrender.com/api/payments/update/${bill._id}`, {
         status: newStatus
       });
       
@@ -132,7 +132,7 @@ const BillHistory: React.FC = () => {
     
     try {
       // Send return data to the server
-      await axios.put(`http://localhost:5000/api/payments/update/${bill._id}`, {
+      await axios.put(`https://alwon.onrender.com/api/payments/update/${bill._id}`, {
         returnedBottles
       });
       

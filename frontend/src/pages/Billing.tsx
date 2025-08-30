@@ -53,12 +53,12 @@ const Billing: React.FC = () => {
   // store last bill for preview/printing after clearing form
   const [lastBill, setLastBill] = useState<any | null>(null);
 
-  const paymentsApi = 'http://localhost:5000/api/payments/history';
+  const paymentsApi = 'https://alwon.onrender.com/api/payments/history';
 
   // Fetch customers from backend on mount
   useEffect(() => {
     if (tabIndex === 0) {
-      axios.get('http://localhost:5000/api/customers')
+      axios.get('https://alwon.onrender.com/api/customers')
         .then(res => setCustomers(res.data))
         .catch(() => setCustomers([]));
     }
@@ -87,7 +87,7 @@ const Billing: React.FC = () => {
   // Fetch stock data from backend
   useEffect(() => {
     // Replace mock data with actual API call
-    axios.get('http://localhost:5000/api/inventory/stock')
+    axios.get('https://alwon.onrender.com/api/inventory/stock')
       .then(res => setStockData(res.data))
       .catch(err => {
         console.error("Error fetching stock data:", err);
@@ -242,7 +242,7 @@ const Billing: React.FC = () => {
           type: 'regular',
           priceRates: priceRatesForGuest
         };
-        const createRes = await axios.post('http://localhost:5000/api/customers/add', createPayload);
+        const createRes = await axios.post('https://alwon.onrender.com/api/customers/add', createPayload);
         const newCustomer = createRes.data;
         if (!newCustomer || !newCustomer._id) {
           throw new Error('Failed to create customer');
@@ -301,7 +301,7 @@ const Billing: React.FC = () => {
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/api/payments/issue', billData);
+      const response = await axios.post('https://alwon.onrender.com/api/payments/issue', billData);
       console.log('Bill saved successfully:', response.data);
       
       // --- NEW: persist/merge priceRates for this customer so future invoices use updated prices ---
@@ -321,7 +321,7 @@ const Billing: React.FC = () => {
           const mergedPriceRates = Object.entries(mergedMap).map(([bottleType, price]) => ({ bottleType, price }));
 
           // send update to backend (edit customer)
-          await axios.put(`http://localhost:5000/api/customers/${customerIdForBill}`, {
+          await axios.put(`https://alwon.onrender.com/api/customers/${customerIdForBill}`, {
             customername: existingCustomer?.customername || (tabIndex === 1 ? guestName : ''),
             phone: existingCustomer?.phone || (tabIndex === 1 ? guestPhone : ''),
             priceRates: mergedPriceRates,
@@ -355,7 +355,7 @@ const Billing: React.FC = () => {
       setSuccess(true);
 
       // Refresh stock data immediately after successful payment
-      axios.get('http://localhost:5000/api/inventory/stock')
+      axios.get('https://alwon.onrender.com/api/inventory/stock')
         .then(res => setStockData(res.data))
         .catch(err => {
           console.error("Error fetching updated stock data:", err);
