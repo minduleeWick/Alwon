@@ -138,7 +138,7 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Build reset URL for frontend page — configure FRONTEND_URL in Render env
-    const frontendBase = process.env.FRONTEND_URL || 'https://alwon.onrender.com';
+    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${frontendBase}/reset-password/${token}`;
 
     const transporter = nodemailer.createTransport({
