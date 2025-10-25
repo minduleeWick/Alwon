@@ -119,16 +119,27 @@ const editUser = async (req, res) => {
 const forgotPassword = async (req, res) => {
   const { username } = req.body;
 
+  if (!username) {
+    return res.status(400).json({ error: 'Username is required.' });
+  }
+
   try {
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('Missing EMAIL_USER or EMAIL_PASS env vars');
+      return res.status(500).json({ error: 'Email service not configured.' });
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    const resetUrl = `https://alwonwater.store/reset-password/${token}`;
+    // Build reset URL for frontend page — configure FRONTEND_URL in Render env
+    const frontendBase = process.env.FRONTEND_URL || 'https://alwon.onrender.com';
+    const resetUrl = `${frontendBase}/reset-password/${token}`;
 
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
@@ -160,7 +171,8 @@ const forgotPassword = async (req, res) => {
 
     res.json({ message: 'Password reset email sent.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('forgotPassword error:', err);
+    res.status(500).json({ error: 'Server error while processing forgot password.' });
   }
 };
 
