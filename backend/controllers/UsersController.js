@@ -3,6 +3,10 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
+const axios = require('axios');
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // ✅ Register a new user (Admin only)
 const registerUser = async (req, res) => {
@@ -118,65 +122,52 @@ const editUser = async (req, res) => {
 // ✅ Forgot Password
 const forgotPassword = async (req, res) => {
   const { username } = req.body;
-
-  if (!username) {
-    return res.status(400).json({ error: 'Username is required.' });
-  }
+  if (!username) return res.status(400).json({ error: 'Username is required.' });
 
   try {
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.error('Missing EMAIL_USER or EMAIL_PASS env vars');
-      return res.status(500).json({ error: 'Email service not configured.' });
-    }
-
+    // create token and expiry
     const token = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    // Build reset URL for frontend page — configure FRONTEND_URL in Render env
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendBase = (process.env.FRONTEND_URL || 'https://alwon.onrender.com').replace(/\/$/, '');
     const resetUrl = `${frontendBase}/reset-password/${token}`;
 
-    // Example: explicit Gmail SMTP (SSL port 465)
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // use TLS
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // 16-char app password, no spaces
-      },
-      connectionTimeout: 10000 // 10s, useful for debugging
+    const recipient = user.email || user.username;
+    const fromAddress = process.env.EMAIL_FROM || 'navoddeshan@gmail.com';
+
+    // Template params (match the fields you created in EmailJS template)
+    const templateParams = {
+      to_email: recipient,
+      from_email: fromAddress,
+      username: user.username || '',
+      reset_url: resetUrl
+    };
+
+    // Send via EmailJS REST API
+    if (!process.env.EMAILJS_SERVICE_ID || !process.env.EMAILJS_TEMPLATE_ID || !process.env.EMAILJS_USER_ID) {
+      console.error('EmailJS env vars missing');
+      return res.status(500).json({ error: 'Email service not configured.' });
+    }
+
+    await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_USER_ID,
+      template_params: templateParams
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000
     });
 
-    await transporter.sendMail({
-      to: 'minduleewickramasinghe@gmail.com',
-      subject: 'Password Reset',
-      html: `
-    <div style="font-family: Arial, sans-serif; color: #333;">
-      <h2>Password Reset Request</h2>
-      <p>Hello,</p>
-      <p>You requested to reset your password for your Alwon account.</p>
-      <p>
-        <a href="${resetUrl}" 
-           style="display:inline-block;padding:10px 20px;background:#1976d2;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">
-          Reset Password
-        </a>
-      </p>
-      <p>If you did not request this, please ignore this email.</p>
-      <p>Thanks,<br/>Alwon Team</p>
-    </div>
-  `
-    });
-
-    res.json({ message: 'Password reset email sent.' });
+    return res.json({ message: 'Password reset email sent (via EmailJS).' });
   } catch (err) {
-    console.error('forgotPassword error:', err);
-    res.status(500).json({ error: 'Server error while processing forgot password.' });
+    console.error('forgotPassword (EmailJS) error:', err);
+    return res.status(500).json({ error: 'Server error while processing forgot password.' });
   }
 };
 
