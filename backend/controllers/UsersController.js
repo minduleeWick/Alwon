@@ -141,12 +141,16 @@ const forgotPassword = async (req, res) => {
     const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${frontendBase}/reset-password/${token}`;
 
+    // Example: explicit Gmail SMTP (SSL port 465)
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // use TLS
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+        pass: process.env.EMAIL_PASS // 16-char app password, no spaces
+      },
+      connectionTimeout: 10000 // 10s, useful for debugging
     });
 
     await transporter.sendMail({
