@@ -1,9 +1,20 @@
 const mongoose = require('mongoose');
 const Customer = require('../models/Customer');
 const Payment = require('../models/Payments');
+const ActivityLog = require('../models/Activitylogs');
 
 // ✅ Helper to validate MongoDB ObjectId
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// helper: create activity log without failing the main flow
+const safeLog = async (payload) => {
+  try {
+    const log = new ActivityLog(payload);
+    await log.save();
+  } catch (e) {
+    console.error('Activity log failed:', e.message);
+  }
+};
 
 // ✅ Add a new customer
 const addCustomer = async (req, res) => {
@@ -18,6 +29,19 @@ const addCustomer = async (req, res) => {
     // Create and save the customer
     const customer = new Customer({ customername, idnumber, address, phone, email, type });
     await customer.save();
+
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_ADD',
+      description: `Customer added: ${customer.customername}`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { customerId: customer._id, idnumber }
+    });
+
     res.status(201).json(customer);
   } catch (err) {
     // Handle unique constraint and validation errors
@@ -33,6 +57,19 @@ const addCustomer = async (req, res) => {
 const getAllCustomers = async (req, res) => {
   try {
     const customers = await Customer.find().sort({ createdAt: -1 });
+
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_LIST',
+      description: `Customer list viewed, ${customers.length} records returned`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { resultsCount: customers.length }
+    });
+
     res.json(customers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -51,6 +88,19 @@ const deleteCustomer = async (req, res) => {
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found.' });
     }
+
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_DELETE',
+      description: `Customer deleted: ${customer.customername} (${id})`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { deletedCustomerId: id }
+    });
+
     res.json({ message: 'Customer deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -81,6 +131,18 @@ const editCustomer = async (req, res) => {
       return res.status(404).json({ error: 'Customer not found.' });
     }
 
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_EDIT',
+      description: `Customer updated: ${updatedCustomer.customername} (${id})`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { customerId: id }
+    });
+
     res.json(updatedCustomer);
   } catch (err) {
     if (err.code === 11000) {
@@ -102,6 +164,19 @@ const searchCustomers = async (req, res) => {
         { email: { $regex: query, $options: 'i' } }
       ]
     });
+
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_SEARCH',
+      description: `Customer search performed: "${query}"`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { query, resultsCount: customers.length }
+    });
+
     res.json(customers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -150,6 +225,18 @@ const getAllCustomerCreditSummaries = async (req, res) => {
         }
       }
     ]);
+
+    // Activity log
+    await safeLog({
+      activityType: 'CUSTOMER_CREDIT_SUMMARIES_VIEW',
+      description: `Customer credit summaries viewed, ${summaries.length} records returned`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { resultsCount: summaries.length }
+    });
 
     res.status(200).json(summaries);
   } catch (err) {

@@ -1,8 +1,19 @@
 const User = require('../models/Users');
+const ActivityLog = require('../models/Activitylogs');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+
+// helper: create activity log without failing the main flow
+const safeLog = async (payload) => {
+  try {
+    const log = new ActivityLog(payload);
+    await log.save();
+  } catch (e) {
+    console.error('Activity log failed:', e.message);
+  }
+};
 
 // ✅ Register a new user (Admin only)
 const registerUser = async (req, res) => {
@@ -27,6 +38,18 @@ const registerUser = async (req, res) => {
     });
 
     await user.save();
+
+    // log activity (actor might be admin in req.user or system)
+    await safeLog({
+      activityType: 'USER_REGISTER',
+      description: `User registered: ${user.username}`,
+      userId: user._id,
+      username: user.username,
+      role: user.role,
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
+    });
+
     res.status(201).json({ message: 'User registered successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -49,10 +72,21 @@ const loginUser = async (req, res) => {
     if (!match) return res.status(401).json({ error: 'Invalid credentials.' });
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
+
+    // log successful login
+    await safeLog({
+      activityType: 'USER_LOGIN',
+      description: `User login: ${user.username}`,
+      userId: user._id,
+      username: user.username,
+      role: user.role,
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
+    });
 
     res.json({ token, username: user.username, role: user.role });
   } catch (err) {
@@ -81,6 +115,19 @@ const deleteUser = async (req, res) => {
     const user = await User.findByIdAndDelete(id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    // log deletion (actor is req.user)
+    await safeLog({
+      activityType: 'USER_DELETE',
+      description: `User deleted: ${user.username} (${user._id}) by admin ${req.user.username || req.user.id}`,
+      userId: user._id,
+      username: user.username,
+      role: user.role,
+      actorId: req.user.id || req.user._id,
+      actorUsername: req.user.username || '',
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
+    });
+
     res.json({ message: 'User deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -108,6 +155,19 @@ const editUser = async (req, res) => {
     if (!updatedUser) {
       return res.status(404).json({ error: 'User not found.' });
     }
+
+    // log edit
+    await safeLog({
+      activityType: 'USER_EDIT',
+      description: `User updated: ${updatedUser.username} (${updatedUser._id}) by admin ${req.user.username || req.user.id}`,
+      userId: updatedUser._id,
+      username: updatedUser.username,
+      role: updatedUser.role,
+      actorId: req.user.id || req.user._id,
+      actorUsername: req.user.username || '',
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
+    });
 
     res.json({ message: 'User updated successfully.', user: updatedUser });
   } catch (err) {
@@ -139,9 +199,20 @@ const forgotPassword = async (req, res) => {
     });
 
     await transporter.sendMail({
-      to: 'it21272868@my.sliit.lk',
+      to: user.email || 'it21272868@my.sliit.lk',
       subject: 'Password Reset',
       html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
+    });
+
+    // log forgot password request
+    await safeLog({
+      activityType: 'PASSWORD_RESET_REQUEST',
+      description: `Password reset requested for ${user.username}`,
+      userId: user._id,
+      username: user.username,
+      role: user.role,
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
     });
 
     res.json({ message: 'Password reset email sent.' });
@@ -168,6 +239,17 @@ const resetPassword = async (req, res) => {
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
     await user.save();
+
+    // log reset
+    await safeLog({
+      activityType: 'PASSWORD_RESET',
+      description: `Password reset for ${user.username}`,
+      userId: user._id,
+      username: user.username,
+      role: user.role,
+      timestamp: new Date(),
+      ipAddress: req.ip || ''
+    });
 
     res.json({ message: 'Password has been reset successfully.' });
   } catch (err) {

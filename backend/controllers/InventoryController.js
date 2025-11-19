@@ -1,9 +1,19 @@
 const mongoose = require('mongoose');
-
 const Inventory = require('../models/Inventory');
+const ActivityLog = require('../models/Activitylogs');
 
 // ✅ Helper: Check if MongoDB ObjectId is valid
- const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+// helper: create activity log without failing the main flow
+const safeLog = async (payload) => {
+  try {
+    const log = new ActivityLog(payload);
+    await log.save();
+  } catch (e) {
+    console.error('Activity log failed:', e.message);
+  }
+};
 
 const addInventoryItem = async (req, res) => {
   try {
@@ -40,15 +50,43 @@ const addInventoryItem = async (req, res) => {
     const newInventory = new Inventory({ _id: new mongoose.Types.ObjectId(), date, bottles });
     const saved = await newInventory.save();
 
+    // Activity log
+    await safeLog({
+      activityType: 'INVENTORY_ADD',
+      description: `Inventory added for date ${date} with ${bottles.length} bottles`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: {
+        inventoryId: saved._id,
+        itemCodes: Array.from(itemCodes)
+      }
+    });
+
     return res.status(201).json({ message: 'Inventory added successfully', data: saved });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
 };
+
 // ✅ Get all inventory items
 const getAllInventoryItems = async (req, res) => {
   try {
     const items = await Inventory.find().sort({ createdAt: -1 });
+
+    await safeLog({
+      activityType: 'INVENTORY_VIEW',
+      description: `Inventory viewed, ${items.length} records returned`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { resultsCount: items.length }
+    });
+
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -59,15 +97,27 @@ const getAllInventoryItems = async (req, res) => {
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
 
-   if (!isValidObjectId(id)) {
-     return res.status(400).json({ error: 'Invalid item ID format.' });
-   }
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ error: 'Invalid item ID format.' });
+  }
 
   try {
     const item = await Inventory.findByIdAndDelete(id);
     if (!item) {
       return res.status(404).json({ error: 'Item not found.' });
     }
+
+    await safeLog({
+      activityType: 'INVENTORY_DELETE',
+      description: `Inventory deleted: ${id}`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { deletedId: id }
+    });
+
     res.json({ message: 'Item deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,12 +143,10 @@ const editInventoryItem = async (req, res) => {
     const { itemCode, quantity } = bottle;
 
     if (!itemCode || itemCode.trim() === '' || itemCode === null) {
-      console.log('Invalid itemCode:', itemCode);
       return res.status(400).json({ error: 'itemCode and quantity are required for all bottles.' });
     }
 
     if (quantity == null || isNaN(quantity) || quantity < 0) {
-      console.log('Invalid quantity:', quantity);
       return res.status(400).json({ error: 'itemCode and quantity are required for all bottles.' });
     }
   }
@@ -129,6 +177,17 @@ const editInventoryItem = async (req, res) => {
       return res.status(404).json({ error: 'Inventory item not found.' });
     }
 
+    await safeLog({
+      activityType: 'INVENTORY_EDIT',
+      description: `Inventory updated: ${id}`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { inventoryId: id, bottlesCount: normalizedBottles.length }
+    });
+
     res.json({ message: 'Inventory item updated successfully.', item: updatedItem });
   } catch (err) {
     console.error('Edit error:', err);
@@ -147,15 +206,27 @@ const searchInventoryItems = async (req, res) => {
         { itemCode: { $regex: query, $options: 'i' } },
       ],
     });
+
+    await safeLog({
+      activityType: 'INVENTORY_SEARCH',
+      description: `Inventory search performed: "${query}"`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { query, resultsCount: items.length }
+    });
+
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ Update inventory fields by itemCode
+// ✅ Update inventory fields by itemCode (bulk)
 const updateInventoryByItemCode = async (req, res) => {
-  const updates = req.body; // Expecting an array of updates
+  const updates = req.body;
 
   if (!Array.isArray(updates) || updates.length === 0) {
     return res.status(400).json({ error: 'Request body must be a non-empty array of updates.' });
@@ -196,14 +267,23 @@ const updateInventoryByItemCode = async (req, res) => {
       results.push({ itemCode, message: 'Item updated successfully', updatedItem: item });
     }
 
-    res.status(200).json({ results });
+    await safeLog({
+      activityType: 'INVENTORY_BULK_UPDATE',
+      description: `Bulk inventory update performed: ${updates.length} updates`,
+      userId: req.user && req.user._id ? req.user._id : undefined,
+      username: req.user && req.user.username ? req.user.username : 'system',
+      role: req.user && req.user.role ? req.user.role : 'system',
+      timestamp: new Date(),
+      ipAddress: req.ip || '',
+      meta: { requestedUpdates: updates.length, resultCount: results.length }
+    });
 
+    res.status(200).json({ results });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// ✅ Export all functions
 module.exports = {
   addInventoryItem,
   getAllInventoryItems,
